@@ -12,6 +12,11 @@
     "@wasmer/wasi": "^0.5.0",
     "@wasmer/wasm-transformer": "^0.5.0",
     "@wasmer/wasmfs": "^0.5.0",
+    "ethers": "^4.0.40",
+    "keccak": "^2.1.0",
     "memfs": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^12.12.16"
   }
 }

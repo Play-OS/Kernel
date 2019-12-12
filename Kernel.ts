@@ -20,7 +20,7 @@ class Kernel {
 
     wasmParser: WasmParser;
 
-    constructor(privateSeed: string, provider: IKernelProvider) {
+    constructor(privateSeed: string, provider: IKernelProvider, syncProviders?: IKernelProvider[]) {
         this.privateSeed = privateSeed;
         this.provider = provider;
     }
@@ -34,7 +34,7 @@ class Kernel {
         this.registry = new Registry({}, this.provider);
         this.encryption = new Encryption(this.privateSeed);
 
-        this.provider.setKeys(this.encryption.createKey('provider'));
+        await this.provider.init(this.encryption.createKey('provider'));
 
         this.fs = await FileSystem.create(this.registry, this.provider);
         this.wasmParser = new WasmParser(this.fs);

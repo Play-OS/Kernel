@@ -27,9 +27,17 @@ class RutileProvider implements IKernelProvider {
         this.httpHost = httpHost;
     }
 
-    async setKeys(key: string) {
+    async init(key: string) {
         this.privateKey = key;
         this.wallet = new ethers.Wallet(key, this.chainProvider);
+    }
+
+    async setMapping(mapping: {[key: string]: object}) {
+
+    }
+
+    setMappingListener(listener: any) {
+
     }
 
     async storageGet(key: string) {
@@ -100,7 +108,7 @@ class RutileProvider implements IKernelProvider {
         return Buffer.from(await response.arrayBuffer());
     }
 
-    async storeFile(file: Buffer) {
+    async storeFile(file: Buffer, path?: string) {
         const response = await fetch(`${this.httpHost}files/upload`, {
             method: 'POST',
             body: file,

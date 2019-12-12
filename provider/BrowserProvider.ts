@@ -1,7 +1,15 @@
 import IKernelProvider from '../interfaces/IKernelProvider';
 
 class BrowserProvider implements IKernelProvider {
-    async setKeys(key: string) {
+    async init(key: string) {
+
+    }
+
+    async setMapping(mapping: {[key: string]: object}) {
+
+    }
+
+    setMappingListener(listener: any) {
 
     }
 
@@ -17,7 +25,7 @@ class BrowserProvider implements IKernelProvider {
         return Buffer.from(localStorage.getItem(id));
     }
 
-    async storeFile(file: Buffer) {
+    async storeFile(file: Buffer, path?: string) {
         const fileId = Math.random().toString();
         localStorage.setItem(fileId, file.toString());
         return fileId;

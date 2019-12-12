@@ -1,13 +1,14 @@
 // @ts-ignore
 import WasmFs from '@wasmer/wasmfs/lib/index.esm';
 import WasmFsType from '@wasmer/wasmfs';
-import { TFileId, IReadFileOptions, TData, TFilePath, TMode, IMkdirOptions } from 'memfs/lib/volume';
+import { TFileId, IReadFileOptions, TData, TFilePath, TMode, IMkdirOptions, TCallback } from 'memfs/lib/volume';
 import { TDataOut, TEncodingExtended } from 'memfs/lib/encoding';
 import stringToBytes from '../services/stringToBytes';
 import Registry from './Registry';
 import IKernelProvider from '../interfaces/IKernelProvider';
 import WasmParser from './WasmParser';
 import Dirent from 'memfs/lib/Dirent';
+import createDefaultDirectoryStructure from '../services/createDefaultDirectoryStructure';
 
 interface FileSystemDirOptions {
     encoding?: TEncodingExtended;
@@ -20,6 +21,11 @@ class FileSystem {
 
     private provider: IKernelProvider;
 
+    // Mapping of path -> location of file
+    private mapping: {[ key: string ]: any};
+    private mappingSynced: boolean = true;
+    private mappingSyncIntervalId: any;
+
     public wasmFs: WasmFsType;
 
     constructor(registry: Registry, provider: IKernelProvider) {
@@ -30,37 +36,106 @@ class FileSystem {
 
     async init() {
         const fileSystemMapId = await this.registry.get<string>('fs_map');
+        this.mappingSyncIntervalId = setInterval(this.synchroniseFileMap.bind(this), 5000);
+
+        // I know this is dirty, but the "this" is required in fromJSON
+        // with self we can access our class
+        const self = this;
+        const originalFromJson = this.wasmFs.fromJSON;
+        this.wasmFs.fromJSON = function (fsJson: any) {
+            // Sadly the WASM terminal resets the filesystem, we have to overwrite the function
+            // to couple our file system again
+            // NOTICE: It's very possible this will result in a race condition
+            const result = originalFromJson.call(this, fsJson);
+            self.coupleFsToProvider();
+            return result;
+        }
 
         if (!fileSystemMapId) {
             // Create our default folders
-            this.wasmFs.fs.mkdirSync('/Applications/');
-            this.wasmFs.fs.mkdirSync('/Library/');
-            this.wasmFs.fs.mkdirSync('/System/');
-            this.wasmFs.fs.mkdirSync('/Users/franklinwaller/', {
-                recursive: true,
-            });
-
-            this.wasmFs.fs.writeFileSync('/Applications/.keep', '');
-            this.wasmFs.fs.writeFileSync('/Library/.keep', '');
-            this.wasmFs.fs.writeFileSync('/System/.keep', '');
-            this.wasmFs.fs.writeFileSync('/Users/franklinwaller/.keep', '');
+            await createDefaultDirectoryStructure(this);
+            await WasmParser.createDefaultApps(this);
 
             const fsBundle = this.wasmFs.toJSON();
-            const fileId = await this.provider.storeFile(Buffer.from(stringToBytes(JSON.stringify(fsBundle))));
+            const fileId = await this.provider.storeFile(Buffer.from(stringToBytes(JSON.stringify(fsBundle))), '/.fs_map');
 
             await this.registry.set('fs_map', fileId, false);
+
+            this.mapping = fsBundle;
+            this.provider.setMapping(fsBundle);
         } else {
             const fileMapRaw = (await this.provider.fetchFile(fileSystemMapId)).toString();
             const fileMap = JSON.parse(fileMapRaw);
 
+            this.mapping = fileMap;
             this.wasmFs.fromJSON(fileMap);
+            this.provider.setMapping(fileMap);
         }
 
-        await WasmParser.createDefaultApps(this);
+        this.coupleFsToProvider();
+    }
+
+    coupleFsToProvider() {
+        Object.keys(this.wasmFs.fs).forEach((key) => {
+            const originalFunction = this.wasmFs.fs[key];
+
+            this.wasmFs.fs[key] = (...args: any[]) => {
+                console.log('Not implemented: ', key);
+                return originalFunction(...args);
+            }
+        });
+
+        const originalWriteFile = this.wasmFs.fs.writeFile;
+        // @ts-ignore
+        this.wasmFs.fs.writeFile = async (id: any, data: any, options: any, callback: any) => {
+            // Resources are saved in location ids. This way virtual file systems can work aswell
+            const locationId = await this.provider.storeFile(data, id);
+
+            // Set the mapping correctly
+            this.mapping[id] = Buffer.from(stringToBytes(id)).toJSON();
+            this.mappingSynced = false;
+
+            return originalWriteFile(id, data, options, callback);
+        }
+
+        const originalReadFile = this.wasmFs.fs.readFile;
+
+        // @ts-ignore
+        this.wasmFs.fs.readFile = async (id: TFileId, options: string | IReadFileOptions, callback: any) => {
+            try {
+                console.log('Reading file');
+                // We need to do a lookup in our mapping to find the real id.
+                // TODO: this :)
+                const path = Buffer.from(this.mapping[id.toString()]).toString();
+
+                const file = await this.provider.fetchFile(id.toString());
+                callback(null, file);
+            } catch(error) {
+                callback(error, null);
+            }
+        }
     }
 
     /**
-     * Reads a file from the filesystem
+     * Synchronises the file map to the provider
+     *
+     * @memberof FileSystem
+     */
+    async synchroniseFileMap() {
+        if (this.mappingSynced) {
+            return;
+        }
+
+        // First tell the system we have synced. If we did this later an issue
+        // could occur where a new file has been written in between syncs
+        this.mappingSynced = true;
+
+        const fileId = await this.provider.storeFile(Buffer.from(stringToBytes(JSON.stringify(this.mapping))), '/.fs_map');
+        await this.registry.set('fs_map', fileId, false);
+    }
+
+    /**
+     *  Reads a file from the filesystem
      *
      * @param {TFileId} id
      * @param {(string | IReadFileOptions)} [options]
@@ -108,7 +183,7 @@ class FileSystem {
      */
     makeDir(path: TFilePath, options?: TMode | IMkdirOptions): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.wasmFs.fs.mkdir(path, (error) => {
+            this.wasmFs.fs.mkdir(path, options, (error) => {
                 if (error) {
                     reject(error);
                 } else {

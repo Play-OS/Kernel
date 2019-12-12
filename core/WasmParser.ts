@@ -35,7 +35,7 @@ class WasmParser {
      * @memberof WasmParser
      */
     async parseDirectory(wappFolderPath: string, options?: ParseOptions): Promise<ParsedApplicationInfo> {
-        const manifestRaw = await this.fs.readFile(`${wappFolderPath}/manifest.json`);
+        const manifestRaw = await this.fs.readFile(`${wappFolderPath}/manifest.json`, {encoding: "buffer"});
         const manifest: Application = JSON.parse(manifestRaw.toString());
 
         return this.parseManifest(manifest, options, wappFolderPath);
