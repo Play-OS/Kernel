@@ -76,14 +76,14 @@ class FileSystem {
     }
 
     coupleFsToProvider() {
-        Object.keys(this.wasmFs.fs).forEach((key) => {
-            const originalFunction = this.wasmFs.fs[key];
+        // Object.keys(this.wasmFs.fs).forEach((key) => {
+        //     const originalFunction = this.wasmFs.fs[key];
 
-            this.wasmFs.fs[key] = (...args: any[]) => {
-                console.log('Not implemented: ', key);
-                return originalFunction(...args);
-            }
-        });
+        //     this.wasmFs.fs[key] = (...args: any[]) => {
+        //         console.log('Not implemented: ', key);
+        //         return originalFunction(...args);
+        //     }
+        // });
 
         const originalWriteFile = this.wasmFs.fs.writeFile;
         // @ts-ignore
@@ -113,6 +113,13 @@ class FileSystem {
             } catch(error) {
                 callback(error, null);
             }
+        }
+
+        const originalReadSync = this.wasmFs.fs.readSync;
+        this.wasmFs.fs.readSync = (...args: any[]) => {
+            console.log('[ReadSync] args -> ', args);
+            // @ts-ignore
+            return originalReadSync(...args);
         }
     }
 

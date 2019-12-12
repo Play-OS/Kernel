@@ -38,7 +38,7 @@ class Kernel {
 
         this.fs = await FileSystem.create(this.registry, this.provider);
         this.wasmParser = new WasmParser(this.fs);
-        this.vm = new VirtualMachine();
+        this.vm = new VirtualMachine(this.fs);
     }
 }
 

@@ -12,6 +12,8 @@
     "@wasmer/wasi": "^0.5.0",
     "@wasmer/wasm-transformer": "^0.5.0",
     "@wasmer/wasmfs": "^0.5.0",
+    "asyncify-wasm": "^1.0.0",
+    "binaryen": "^89.0.0",
     "ethers": "^4.0.40",
     "keccak": "^2.1.0",
     "memfs": "^3.0.1"
