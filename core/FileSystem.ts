@@ -1,7 +1,6 @@
-// @ts-ignore
-import WasmFs from '@wasmer/wasmfs/lib/index.esm';
+import WasmFs from '@wasmer/wasmfs';
 import WasmFsType from '@wasmer/wasmfs';
-import { TFileId, IReadFileOptions, TData, TFilePath, TMode, IMkdirOptions, TCallback } from 'memfs/lib/volume';
+import { TFileId, IReadFileOptions, TData, TFilePath, TMode, IMkdirOptions, TCallback, TFlags } from 'memfs/lib/volume';
 import { TDataOut, TEncodingExtended } from 'memfs/lib/encoding';
 import stringToBytes from '../services/stringToBytes';
 import Registry from './Registry';
@@ -76,18 +75,27 @@ class FileSystem {
     }
 
     coupleFsToProvider() {
-        // Object.keys(this.wasmFs.fs).forEach((key) => {
-        //     const originalFunction = this.wasmFs.fs[key];
+        Object.keys(this.wasmFs.fs).forEach((key) => {
+            const originalFunction = this.wasmFs.fs[key];
 
-        //     this.wasmFs.fs[key] = (...args: any[]) => {
-        //         console.log('Not implemented: ', key);
-        //         return originalFunction(...args);
-        //     }
-        // });
+            this.wasmFs.fs[key] = (...args: any[]) => {
+                console.log('[Fs] !!!! Not implemented: ', key);
+                return originalFunction(...args);
+            }
+        });
+
+        // VERGEET NIET de 0 en args weg te halen!!!!!
+        const originalOpenSync = this.wasmFs.fs.openSync;
+        this.wasmFs.fs.openSync = (...args: any[]) => {
+            // @ts-ignore
+            return originalOpenSync(args[0], 0);
+            // return originalOpenSync(...args);
+        }
 
         const originalWriteFile = this.wasmFs.fs.writeFile;
         // @ts-ignore
         this.wasmFs.fs.writeFile = async (id: any, data: any, options: any, callback: any) => {
+            console.log('[writeFile] id -> ', id);
             // Resources are saved in location ids. This way virtual file systems can work aswell
             const locationId = await this.provider.storeFile(data, id);
 
@@ -103,21 +111,27 @@ class FileSystem {
         // @ts-ignore
         this.wasmFs.fs.readFile = async (id: TFileId, options: string | IReadFileOptions, callback: any) => {
             try {
-                console.log('Reading file');
+                console.log('Reading file -> ', id);
                 // We need to do a lookup in our mapping to find the real id.
                 // TODO: this :)
                 const path = Buffer.from(this.mapping[id.toString()]).toString();
-
                 const file = await this.provider.fetchFile(id.toString());
+                console.log('[] file -> ', file);
                 callback(null, file);
             } catch(error) {
                 callback(error, null);
             }
         }
 
+        const originalReadFileSync = this.wasmFs.fs.readFileSync;
+        this.wasmFs.fs.readFileSync = (file: TFileId, options?: string | IReadFileOptions) => {
+            console.log('[ReadFileSync] file -> ', file);
+            return originalReadFileSync(file, options);
+        }
+
         const originalReadSync = this.wasmFs.fs.readSync;
         this.wasmFs.fs.readSync = (...args: any[]) => {
-            console.log('[ReadSync] args -> ', args);
+            console.log('[NOT_IMPLEMENTED_ReadSync] args -> ', args);
             // @ts-ignore
             return originalReadSync(...args);
         }
@@ -139,6 +153,18 @@ class FileSystem {
 
         const fileId = await this.provider.storeFile(Buffer.from(stringToBytes(JSON.stringify(this.mapping))), '/.fs_map');
         await this.registry.set('fs_map', fileId, false);
+    }
+
+    async read(fd: number, buffer: Buffer | Uint8Array, offset: number, length: number, position: number) {
+        return new Promise((resolve, reject) => {
+            this.wasmFs.fs.read(fd, buffer, offset, length, position, (err, bytesRead, buffer) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(bytesRead);
+                }
+            });
+        });
     }
 
     /**
@@ -171,7 +197,7 @@ class FileSystem {
      */
     writeFile(id: TFileId, data: TData): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.wasmFs.fs.writeFile(id, data, (error) => {
+            this.wasmFs.fs.writeFile(id, data, (error: any) => {
                 if (error) {
                     reject(error);
                 } else {
@@ -190,7 +216,7 @@ class FileSystem {
      */
     makeDir(path: TFilePath, options?: TMode | IMkdirOptions): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.wasmFs.fs.mkdir(path, options, (error) => {
+            this.wasmFs.fs.mkdir(path, options, (error: any) => {
                 if (error) {
                     reject(error);
                 } else {
@@ -212,7 +238,7 @@ class FileSystem {
             this.wasmFs.fs.readdir(path, {
                 encoding: options.encoding,
                 withFileTypes: options.withFileTypes,
-            }, (error, data) => {
+            }, (error: any, data: any) => {
                 let result = data;
 
                 if (error) {

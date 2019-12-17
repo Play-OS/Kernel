@@ -1,24 +1,38 @@
 {
-  "name": "@playos/kernel",
-  "version": "1.0.0",
-  "description": "Kernel for PlayOS",
-  "main": "index.js",
-  "scripts": {
-    "test": ""
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "@wasmer/wasi": "^0.5.0",
-    "@wasmer/wasm-transformer": "^0.5.0",
-    "@wasmer/wasmfs": "^0.5.0",
-    "asyncify-wasm": "^1.0.0",
-    "binaryen": "^89.0.0",
-    "ethers": "^4.0.40",
-    "keccak": "^2.1.0",
-    "memfs": "^3.0.1"
-  },
-  "devDependencies": {
-    "@types/node": "^12.12.16"
-  }
+    "name": "@playos/kernel",
+    "version": "1.0.0",
+    "description": "Kernel for PlayOS",
+    "scripts": {
+        "build": "cross-env NODE_ENV=production webpack",
+        "start": "cross-env NODE_ENV=development webpack-dev-server --config ./webpack.config.js --open true --port 1337 --inline",
+        "test": ""
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@wasmer/wasi": "^0.5.0",
+        "@wasmer/wasm-transformer": "^0.5.0",
+        "@wasmer/wasmfs": "^0.5.0",
+        "asyncify-wasm": "^1.0.0",
+        "binaryen": "^89.0.0",
+        "comlink": "^4.2.0",
+        "ethers": "^4.0.40",
+        "keccak": "^2.1.0",
+        "memfs": "^3.0.1"
+    },
+    "devDependencies": {
+        "@babel/core": "^7.7.5",
+        "@babel/plugin-proposal-class-properties": "^7.7.4",
+        "@babel/plugin-proposal-object-rest-spread": "^7.7.4",
+        "@babel/preset-env": "^7.7.6",
+        "@types/node": "^12.12.16",
+        "babel-loader": "^8.0.6",
+        "ts-loader": "^6.2.1",
+        "typescript": "^3.7.3",
+        "url-loader": "^3.0.0",
+        "cross-env": "^6.0.3",
+        "webpack": "^4.41.2",
+        "webpack-cli": "^3.3.10",
+        "webpack-dev-server": "^3.9.0"
+    }
 }

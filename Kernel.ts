@@ -4,6 +4,9 @@ import IKernelProvider from './interfaces/IKernelProvider';
 import VirtualMachine from './core/VirtualMachine';
 import Encryption from './core/Encryption';
 import WasmParser from './core/WasmParser';
+import KernelWorker from './KernelWorker';
+import { ProcessEnvOptions } from 'child_process';
+import Process from './core/Process';
 
 class Kernel {
     registry: Registry;
@@ -20,7 +23,7 @@ class Kernel {
 
     wasmParser: WasmParser;
 
-    constructor(privateSeed: string, provider: IKernelProvider, syncProviders?: IKernelProvider[]) {
+    constructor(privateSeed: string, provider: IKernelProvider) {
         this.privateSeed = privateSeed;
         this.provider = provider;
     }
@@ -30,7 +33,7 @@ class Kernel {
      *
      * @memberof Kernel
      */
-    async boot() {
+    async boot(): Promise<void> {
         this.registry = new Registry({}, this.provider);
         this.encryption = new Encryption(this.privateSeed);
 
@@ -38,7 +41,21 @@ class Kernel {
 
         this.fs = await FileSystem.create(this.registry, this.provider);
         this.wasmParser = new WasmParser(this.fs);
-        this.vm = new VirtualMachine(this.fs);
+        this.vm = new VirtualMachine(this.fs.wasmFs);
+    }
+
+    /**
+     * Spawns a new process
+     *
+     * @param {Uint8Array} bin
+     * @param {string[]} args
+     * @param {ProcessEnvOptions} options
+     * @returns {Promise<Process>}
+     * @memberof Kernel
+     */
+    async spawnProcess(bin: Uint8Array, args: string[], options: ProcessEnvOptions): Promise<string> {
+        const process = new Process(this.fs, bin, args, options);
+        return await process.spawn();
     }
 }
 

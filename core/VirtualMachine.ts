@@ -1,19 +1,22 @@
 import { WASI } from '@wasmer/wasi';
+import * as Comlink from 'comlink';
 // @ts-ignore
-import { lowerI64Imports } from "@wasmer/wasm-transformer/lib/unoptimized/wasm-transformer.esm";
+import { lowerI64Imports } from "@wasmer/wasm-transformer";
 import FileSystem from './FileSystem';
+import KernalWorker from '../KernelWorker';
+import { WasmFs } from '@wasmer/wasmfs';
 
 class VirtualMachine {
-    private fs: FileSystem;
+    private wasmFs: WasmFs;
+    private kernalWorker: Comlink.Remote<KernalWorker>;
 
-    constructor(fs: FileSystem) {
-        this.fs = fs;
+    constructor(wasmFs: WasmFs) {
+        this.wasmFs = wasmFs;
     }
 
     /**
      * Prepares a binary for executing on JavaScript.
-     * This includes converting 64bit integeres aswell as converting synchronous
-     * calls to asynchronous.
+     * This includes converting 64bit integeres aswell as metering calls
      *
      * @param {Buffer} bin
      * @returns {Buffer} The converted binary
@@ -35,7 +38,7 @@ class VirtualMachine {
                 env,
                 bindings: {
                     ...WASI.defaultBindings,
-                    fs: this.fs.wasmFs.fs,
+                    fs: this.wasmFs.fs,
                 }
             });
 
@@ -47,11 +50,11 @@ class VirtualMachine {
 
             wasi.start(instance);
 
-            const stdout = await this.fs.wasmFs.getStdOut();
+            const stdout = await this.wasmFs.getStdOut();
 
             return stdout as string;
         } catch (error) {
-            const output = await this.fs.wasmFs.getStdOut()
+            const output = await this.wasmFs.getStdOut()
 
             console.error(`⛔️ An error occured while running a binary`, error);
             console.error(`⛔️ Output of StdOut after crash`, output);
