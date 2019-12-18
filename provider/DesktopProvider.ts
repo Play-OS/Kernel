@@ -5,7 +5,7 @@ import stringToBytes from '../services/stringToBytes';
 const MAIN_DIR = 'PlayOS';
 
 class DesktopProvider implements IKernelProvider {
-    mapping: {[key: string]: object};
+    mapping: {[key: string]: object} = {};
     homeDir: string;
     mapListener: (mapping: {[key: string]: any}) => void = () => {};
 
@@ -62,6 +62,7 @@ class DesktopProvider implements IKernelProvider {
     }
 
     async setMapping(mapping: {[key: string]: any}) {
+        return;
         const fs = __non_webpack_require__('fs');
 
         this.mapping = mapping;
@@ -101,7 +102,13 @@ class DesktopProvider implements IKernelProvider {
     }
 
     async storageGet(key: string) {
-        return (await this.fetchFile(`etc/${key}`)).toString();
+        const buffer = await this.fetchFile(`etc/${key}`);
+
+        if (!buffer) {
+            return null;
+        }
+
+        return buffer.toString();
     }
 
     async storageSet(key: string, value: any): Promise<void> {
@@ -114,7 +121,6 @@ class DesktopProvider implements IKernelProvider {
         try {
             return fs.readFileSync(`${this.homeDir}${id}`);
         } catch (error) {
-            console.error(error);
             return null;
         }
     }

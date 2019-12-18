@@ -96,7 +96,6 @@ class FileSystem {
         // @ts-ignore
         this.wasmFs.fs.writeFile = async (id: any, data: any, options: any, callback: any) => {
             // Resources are saved in location ids. This way virtual file systems can work aswell
-            console.log('[] data -> ', id, data);
             const locationId = await this.provider.storeFile(data, id);
 
             // Set the mapping correctly
