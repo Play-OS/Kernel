@@ -53,6 +53,7 @@ class WasmParser {
         let iconBlob: Blob = null;
 
         if (!manifest.playos.isPwa) {
+            // The icon is stored on disk
             const iconPath = path.resolve(wappFolderPath, manifest.icons[0].src);
             const iconRaw: any = await this.fs.readFile(iconPath);
             iconBlob = new Blob([iconRaw], { type: 'image/jpeg' });

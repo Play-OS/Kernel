@@ -34,6 +34,8 @@ class FileSystem {
     }
 
     async init() {
+        this.coupleFsToProvider();
+
         const fileSystemMapId = await this.registry.get<string>('fs_map');
         this.mappingSyncIntervalId = setInterval(this.synchroniseFileMap.bind(this), 5000);
 
@@ -51,10 +53,6 @@ class FileSystem {
         }
 
         if (!fileSystemMapId) {
-            // Create our default folders
-            await createDefaultDirectoryStructure(this);
-            await WasmParser.createDefaultApps(this);
-
             const fsBundle = this.wasmFs.toJSON();
             const fileId = await this.provider.storeFile(Buffer.from(stringToBytes(JSON.stringify(fsBundle))), '/.fs_map');
 
@@ -62,6 +60,10 @@ class FileSystem {
 
             this.mapping = fsBundle;
             this.provider.setMapping(fsBundle);
+
+            // Create our default folders
+            await createDefaultDirectoryStructure(this);
+            await WasmParser.createDefaultApps(this);
         } else {
             const fileMapRaw = (await this.provider.fetchFile(fileSystemMapId)).toString();
             const fileMap = JSON.parse(fileMapRaw);
@@ -70,19 +72,17 @@ class FileSystem {
             this.wasmFs.fromJSON(fileMap);
             this.provider.setMapping(fileMap);
         }
-
-        this.coupleFsToProvider();
     }
 
     coupleFsToProvider() {
-        Object.keys(this.wasmFs.fs).forEach((key) => {
-            const originalFunction = this.wasmFs.fs[key];
+        // Object.keys(this.wasmFs.fs).forEach((key) => {
+        //     const originalFunction = this.wasmFs.fs[key];
 
-            this.wasmFs.fs[key] = (...args: any[]) => {
-                console.log('[Fs] !!!! Not implemented: ', key);
-                return originalFunction(...args);
-            }
-        });
+        //     this.wasmFs.fs[key] = (...args: any[]) => {
+        //         console.log('[Fs] !!!! Not implemented: ', key);
+        //         return originalFunction(...args);
+        //     }
+        // });
 
         // VERGEET NIET de 0 en args weg te halen!!!!!
         const originalOpenSync = this.wasmFs.fs.openSync;
@@ -95,28 +95,24 @@ class FileSystem {
         const originalWriteFile = this.wasmFs.fs.writeFile;
         // @ts-ignore
         this.wasmFs.fs.writeFile = async (id: any, data: any, options: any, callback: any) => {
-            console.log('[writeFile] id -> ', id);
             // Resources are saved in location ids. This way virtual file systems can work aswell
+            console.log('[] data -> ', id, data);
             const locationId = await this.provider.storeFile(data, id);
 
             // Set the mapping correctly
-            this.mapping[id] = Buffer.from(stringToBytes(id)).toJSON();
+            this.mapping[id] = Buffer.from(stringToBytes(locationId)).toJSON();
             this.mappingSynced = false;
 
-            return originalWriteFile(id, data, options, callback);
+            // We just write the location id as the original file.
+            return originalWriteFile(id, Buffer.from(stringToBytes(locationId)), options, callback);
         }
-
-        const originalReadFile = this.wasmFs.fs.readFile;
 
         // @ts-ignore
         this.wasmFs.fs.readFile = async (id: TFileId, options: string | IReadFileOptions, callback: any) => {
             try {
-                console.log('Reading file -> ', id);
-                // We need to do a lookup in our mapping to find the real id.
-                // TODO: this :)
                 const path = Buffer.from(this.mapping[id.toString()]).toString();
-                const file = await this.provider.fetchFile(id.toString());
-                console.log('[] file -> ', file);
+                const file = await this.provider.fetchFile(path);
+
                 callback(null, file);
             } catch(error) {
                 callback(error, null);
