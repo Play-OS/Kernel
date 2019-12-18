@@ -23,7 +23,7 @@ class KernelWorker {
         this.wasmFs = new WasmFs();
         this.wasmFs.fs.writeFileSync('/test.txt', 'Hello world');
         this.sharedNotifierBuffer = new SharedArrayBuffer(4);
-        this.sharedValuesBuffer = new SharedArrayBuffer(4096);
+        this.sharedValuesBuffer = new SharedArrayBuffer(700000);
         this.context = new VirtualMachineContext(this.wasmFs, this.sharedNotifierBuffer, this.sharedValuesBuffer);
 
 

@@ -1,4 +1,5 @@
 import { WasmFs } from "@wasmer/wasmfs";
+import * as Logger from 'js-logger';
 import { TFilePath, TFlags, IReaddirOptions, TFileId, IReadFileOptions } from "memfs/lib/volume";
 import { workerRequest } from "../services/workerUtils";
 import { waitAndLoad, reset } from '../services/sharedBufferUtils';
@@ -69,37 +70,48 @@ class VirtualMachineContext {
         // });
 
         this.wasmFs.fs.readSync = (...args: any[]) => {
+            console.debug('⚙️ Calling readSync', args);
             const result = this.callMethodOnProcess('readSync', args);
-            return parseInt(toHex(result), 16);
+            const inputBuffer: Buffer = args[1];
+
+            inputBuffer.set(result, args[2]);
+
+            return result.length;
         }
 
         this.wasmFs.fs.writeSync = (...args: any[]) => {
+            console.debug('⚙️ Calling writeSync', args);
             const result = this.callMethodOnProcess('writeSync', args);
             return parseInt(toHex(result), 16);
         }
 
         this.wasmFs.fs.openSync = (...args: any[]) => {
+            console.debug('⚙️ Calling openSync', args);
             const newFs = this.callMethodOnProcess('openSync', args);
             return parseInt(toHex(newFs), 16);
         }
 
         this.wasmFs.fs.closeSync = (...args: any[]) => {
+            console.debug('⚙️ Calling closeSync', args);
             this.callMethodOnProcess('closeSync', args);
         }
 
         // @ts-ignore
         this.wasmFs.fs.statSync = (...args: any[]) => {
+            console.debug('⚙️ Calling statSync', args);
             const result = this.callMethodOnProcess('statSync', args);
             return createFsStats(JSON.parse(result.toString()));
         }
 
         // @ts-ignore
         this.wasmFs.fs.fstatSync = (...args: any[]) => {
+            console.debug('⚙️ Calling fstatSync', args);
             const result = this.callMethodOnProcess('fstatSync', args);
             return createFsStats(JSON.parse(result.toString()));
         }
 
         this.wasmFs.fs.realpathSync = (...args: any[]) => {
+            console.debug('⚙️ Calling realpathSync', args);
             const result = this.callMethodOnProcess('realpathSync', args);
 
             if (!args[1] || (args[1] && args[1].encoding === 'utf8')) {
@@ -111,6 +123,7 @@ class VirtualMachineContext {
 
         // @ts-ignore
         this.wasmFs.fs.readFileSync = (...args: any[]) => {
+            console.debug('⚙️ Calling readFileSync', args);
             const result = this.callMethodOnProcess('readFileSync', args);
 
             if (!args[1] || args[1] === 'utf8' || (args[1] && args[1].encoding === 'utf8')) {
@@ -126,11 +139,15 @@ class VirtualMachineContext {
             return originalExistsSync(path);
         }
 
-        const originalReadDirSync = this.wasmFs.fs.readdirSync;
-        this.wasmFs.fs.readdirSync = (path: TFilePath, options: string | IReaddirOptions) => {
-            console.log('[READDIR] path -> ', path);
+        this.wasmFs.fs.readdirSync = (...args: any[]) => {
+            const result = this.callMethodOnProcess('readdirSync', args);
+            console.debug('⚙️ Calling readdirSync', args);
 
-            return originalReadDirSync(path, options);
+            if (!args[1] || args[1] === 'utf8' || (args[1] && !args[1].encoding) || (args[1] && args[1].encoding === 'utf8')) {
+                return JSON.parse(result.toString());
+            }
+
+            return result;
         }
     }
 }

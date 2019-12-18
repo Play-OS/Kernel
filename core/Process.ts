@@ -42,26 +42,25 @@ class Process {
 
         const methodToCall = message.type.replace('context::', '');
         let result: any = null;
-        console.log('[] message args -> ', message.value);
+
         if (methodToCall === 'readSync') {
             // @ts-ignore
-            result = await this.fs.read(...message.value);
+            const bytesRead = await this.fs.read(...message.value);
+            const position = message.value[4] === null ? 0 : message.value[4];
+            const inputBuffer = new Uint8Array(message.value[1]);
+            result = inputBuffer.slice(position, bytesRead);
+        } else if (methodToCall === 'readFileSync') {
+            // @ts-ignore
+            result = await this.fs.readFile(...message.value);
         } else {
-            if (methodToCall === 'realpathSync') {
-                // @ts-ignore
-                const r = this.fs.wasmFs.fs.realpathSync(...message.value);
-                console.log('[REALPATH] r -> ', r);
-            }
             result = this.fs.wasmFs.fs[methodToCall].call(this, ...message.value);
-
-            if (methodToCall === 'realpathSync') {
-                console.log('[REALPATH222222] result -> ', result);
-            }
         }
 
         let bufferResult: Buffer = null;
 
-        if (typeof result === 'number') {
+        if (result instanceof Uint8Array) {
+            bufferResult = Buffer.from(result);
+        } else if (typeof result === 'number') {
             bufferResult = Buffer.from(numberToHex(result), 'hex');
         } else if (typeof result === 'object') {
             bufferResult = Buffer.from(stringToBytes(JSON.stringify(result)));
@@ -78,6 +77,7 @@ class Process {
 
             // The first 4 bytes are the length of the data (32-bit integer)
             u8ValuesBuffer.set(Buffer.from(numberToHex(dataLength, 8), 'hex'));
+
             // Skip 4 bytes and write the leading values.
             u8ValuesBuffer.set(bufferResult, 4);
         }

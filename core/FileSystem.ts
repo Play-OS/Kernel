@@ -8,6 +8,11 @@ import IKernelProvider from '../interfaces/IKernelProvider';
 import WasmParser from './WasmParser';
 import Dirent from 'memfs/lib/Dirent';
 import createDefaultDirectoryStructure from '../services/createDefaultDirectoryStructure';
+import getValueFromMapping from '../services/getValueFromMapping';
+
+interface OpenFiles {
+    [fd: number]: string;
+};
 
 interface FileSystemDirOptions {
     encoding?: TEncodingExtended;
@@ -24,6 +29,7 @@ class FileSystem {
     private mapping: {[ key: string ]: any};
     private mappingSynced: boolean = true;
     private mappingSyncIntervalId: any;
+    private openFiles: OpenFiles = {};
 
     public wasmFs: WasmFsType;
 
@@ -87,15 +93,18 @@ class FileSystem {
         // VERGEET NIET de 0 en args weg te halen!!!!!
         const originalOpenSync = this.wasmFs.fs.openSync;
         this.wasmFs.fs.openSync = (...args: any[]) => {
+            console.debug('🗂 Calling openSync', args);
             // @ts-ignore
-            return originalOpenSync(args[0], 0);
-            // return originalOpenSync(...args);
+            const fd = originalOpenSync(...args);
+            this.openFiles[fd] = args[0];
+            return fd;
         }
 
         const originalWriteFile = this.wasmFs.fs.writeFile;
         // @ts-ignore
         this.wasmFs.fs.writeFile = async (id: any, data: any, options: any, callback: any) => {
             // Resources are saved in location ids. This way virtual file systems can work aswell
+            console.debug('🗂 Calling writeFile', [id, data, options, callback]);
             const locationId = await this.provider.storeFile(data, id);
 
             // Set the mapping correctly
@@ -109,7 +118,8 @@ class FileSystem {
         // @ts-ignore
         this.wasmFs.fs.readFile = async (id: TFileId, options: string | IReadFileOptions, callback: any) => {
             try {
-                const path = Buffer.from(this.mapping[id.toString()]).toString();
+                console.debug('🗂 Calling readFile', [id, options, callback], this.mapping);
+                const path = getValueFromMapping(id.toString(), this.mapping).toString();// Buffer.from(this.mapping[id.toString()]).toString();
                 const file = await this.provider.fetchFile(path);
 
                 callback(null, file);
@@ -120,15 +130,48 @@ class FileSystem {
 
         const originalReadFileSync = this.wasmFs.fs.readFileSync;
         this.wasmFs.fs.readFileSync = (file: TFileId, options?: string | IReadFileOptions) => {
-            console.log('[ReadFileSync] file -> ', file);
+            console.debug('🗂 Calling readFileSync', [file, options]);
             return originalReadFileSync(file, options);
         }
 
         const originalReadSync = this.wasmFs.fs.readSync;
         this.wasmFs.fs.readSync = (...args: any[]) => {
-            console.log('[NOT_IMPLEMENTED_ReadSync] args -> ', args);
+            console.debug('🗂 Calling readSync', args);
             // @ts-ignore
             return originalReadSync(...args);
+        }
+
+        const originalRead = this.wasmFs.fs.read;
+        this.wasmFs.fs.read = async (...args: any[]) => {
+            const callback = args[5];
+            const file = <Buffer> await this.readFile(this.openFiles[args[0]], {
+                encoding: 'buffer',
+            });
+
+            if (!file) {
+                return callback('No File found', null);
+            }
+
+            // We need to write to the correct position
+            const position: number = args[4] === null ? 0 : args[4];
+            const inputBuffer: Buffer = args[1];
+            const bytesLength = file.length;
+
+            inputBuffer.set(file, position);
+
+            console.log('[] file -> ', inputBuffer);
+            console.debug('🗂 Calling read', args);
+
+            return callback(null, bytesLength);
+            // @ts-ignore
+            // return originalRead(...args);
+        }
+
+        const originalFstatSync = this.wasmFs.fs.fstatSync;
+        this.wasmFs.fs.fstatSync = (...args: any) => {
+            console.debug('🗂 Calling fstatSync', args);
+            // @ts-ignore
+            return originalFstatSync(...args);
         }
     }
 
