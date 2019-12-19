@@ -115,10 +115,21 @@ class FileSystem {
             return originalWriteFile(id, Buffer.from(stringToBytes(locationId)), options, callback);
         }
 
+        const originalReadFile = this.wasmFs.fs.readFile;
         // @ts-ignore
         this.wasmFs.fs.readFile = async (id: TFileId, options: string | IReadFileOptions, callback: any) => {
             try {
                 console.debug('🗂 Calling readFile', [id, options, callback], this.mapping);
+
+                // Device calls should not be interfered with
+                if (id.toString().startsWith('/dev') || id.toString().startsWith('dev')) {
+                    if (options) {
+                        return originalReadFile(id, options, callback);
+                    }
+
+                    return originalReadFile(id, callback);
+                }
+
                 const path = getValueFromMapping(id.toString(), this.mapping).toString();// Buffer.from(this.mapping[id.toString()]).toString();
                 const file = await this.provider.fetchFile(path);
 
@@ -143,6 +154,14 @@ class FileSystem {
 
         const originalRead = this.wasmFs.fs.read;
         this.wasmFs.fs.read = async (...args: any[]) => {
+            console.debug('🗂 Calling read', args);
+
+            // fd under 5 is one of the /dev/ files
+            if (args[0] < 5) {
+                // @ts-ignore
+                return originalRead(...args);
+            }
+
             const callback = args[5];
             const file = <Buffer> await this.readFile(this.openFiles[args[0]], {
                 encoding: 'buffer',
@@ -159,12 +178,7 @@ class FileSystem {
 
             inputBuffer.set(file, position);
 
-            console.log('[] file -> ', inputBuffer);
-            console.debug('🗂 Calling read', args);
-
             return callback(null, bytesLength);
-            // @ts-ignore
-            // return originalRead(...args);
         }
 
         const originalFstatSync = this.wasmFs.fs.fstatSync;
@@ -295,6 +309,21 @@ class FileSystem {
 
                 // @ts-ignore
                 resolve(result);
+            })
+        });
+    }
+
+    /**
+     * Checks if the file exists or not
+     *
+     * @param {TFilePath} path
+     * @returns
+     * @memberof FileSystem
+     */
+    exists(path: TFilePath) {
+        return new Promise((resolve) => {
+            this.wasmFs.fs.exists(path, (exists) => {
+                resolve(exists);
             })
         });
     }
