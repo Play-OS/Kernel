@@ -1,10 +1,13 @@
 import { WasmFs } from "@wasmer/wasmfs";
-import * as Logger from 'js-logger';
 import { TFilePath, TFlags, IReaddirOptions, TFileId, IReadFileOptions } from "memfs/lib/volume";
+import { EventEmitter } from "events";
+
 import { workerRequest } from "../services/workerUtils";
 import { waitAndLoad, reset } from '../services/sharedBufferUtils';
 import { toHex } from "../services/hexUtils";
 import createFsStats from "../services/createFsStats";
+import { bytesToString } from "../services/stringToBytes";
+import { ConsoleLevel } from '../models/Console';
 
 interface OpenFiles {
     fd: number;
@@ -12,13 +15,43 @@ interface OpenFiles {
     buffer?: Buffer;
 }
 
-class VirtualMachineContext {
+const SKIP_FOLDERS = [
+    '/_wasmer',
+    '/dev'
+];
+
+const CONSOLE_FD = [
+    0,
+    1,
+    2,
+];
+
+function isInSkipFolder(path: string): boolean {
+    return !!SKIP_FOLDERS.find(folder => path.startsWith(folder));
+}
+
+class VirtualMachineContext extends EventEmitter {
     wasmFs: WasmFs;
     notifierBuffer: SharedArrayBuffer;
     valuesBuffer: SharedArrayBuffer;
-    openFiles: OpenFiles[] = [];
+    openFiles: OpenFiles[] = [
+        {
+            fd: 0,
+            path: '/dev/stdin'
+        },
+        {
+            fd: 1,
+            path: '/dev/stdout'
+        },
+        {
+            fd: 2,
+            path: '/dev/stderr'
+        }
+    ];
 
     constructor(wasmFs: WasmFs, notifierBuffer: SharedArrayBuffer, valuesBuffer: SharedArrayBuffer) {
+        super();
+
         this.wasmFs = wasmFs;
         this.notifierBuffer = notifierBuffer;
         this.valuesBuffer = valuesBuffer;
@@ -69,8 +102,16 @@ class VirtualMachineContext {
         //     }
         // });
 
+        const originalReadSync = this.wasmFs.fs.readSync;
         this.wasmFs.fs.readSync = (...args: any[]) => {
-            console.debug('⚙️ Calling readSync', args);
+            const fd: number = args[0];
+            const isOpen = !!this.openFiles.find(openFile => openFile.fd === fd);
+
+            if (isOpen) {
+                // @ts-ignore
+                return originalReadSync(...args);
+            }
+
             const result = this.callMethodOnProcess('readSync', args);
             const inputBuffer: Buffer = args[1];
 
@@ -79,39 +120,87 @@ class VirtualMachineContext {
             return result.length;
         }
 
+        const originalFsWriteSync = this.wasmFs.fs.writeSync;
         this.wasmFs.fs.writeSync = (...args: any[]) => {
-            console.debug('⚙️ Calling writeSync', args);
+            const fd: number = args[0];
+
+            // Check if the folder is open in our worker
+            const isOpen = !!this.openFiles.find(openFile => openFile.fd === fd);
+
+            if (isOpen) {
+                // @ts-ignore
+                const result = originalFsWriteSync(...args);
+
+                if (CONSOLE_FD.includes(fd)) {
+                    if (fd === ConsoleLevel.LOG) {
+                        this.emit('message', bytesToString(args[1]));
+                    } else if (fd === ConsoleLevel.ERROR) {
+                        this.emit('error', bytesToString(args[1]));
+                    }
+                }
+
+                return result;
+            }
+
             const result = this.callMethodOnProcess('writeSync', args);
             return parseInt(toHex(result), 16);
         }
 
+        const originalOpenSync = this.wasmFs.fs.openSync;
         this.wasmFs.fs.openSync = (...args: any[]) => {
-            console.debug('⚙️ Calling openSync', args);
+            const path: string = args[0];
+
+            if (isInSkipFolder(path)) {
+                // @ts-ignore
+                const fd = originalOpenSync(...args);
+
+                this.openFiles.push({
+                    fd,
+                    path,
+                });
+
+                return fd;
+            }
+
             const newFs = this.callMethodOnProcess('openSync', args);
             return parseInt(toHex(newFs), 16);
         }
 
         this.wasmFs.fs.closeSync = (...args: any[]) => {
-            console.debug('⚙️ Calling closeSync', args);
             this.callMethodOnProcess('closeSync', args);
         }
 
         // @ts-ignore
         this.wasmFs.fs.statSync = (...args: any[]) => {
-            console.debug('⚙️ Calling statSync', args);
             const result = this.callMethodOnProcess('statSync', args);
+            console.log('[] result, args -> ', result.toString(), args);
             return createFsStats(JSON.parse(result.toString()));
         }
 
+        const originalFstatSync = this.wasmFs.fs.fstatSync;
         // @ts-ignore
         this.wasmFs.fs.fstatSync = (...args: any[]) => {
-            console.debug('⚙️ Calling fstatSync', args);
+            const fd: number = args[0];
+            const isOpen = !!this.openFiles.find(openFile => openFile.fd === fd);
+
+            if (isOpen) {
+                // @ts-ignore
+                return originalFstatSync(...args);
+            }
+
             const result = this.callMethodOnProcess('fstatSync', args);
             return createFsStats(JSON.parse(result.toString()));
         }
 
+        const originalRealPathSync = this.wasmFs.fs.realpathSync;
         this.wasmFs.fs.realpathSync = (...args: any[]) => {
-            console.debug('⚙️ Calling realpathSync', args);
+            const path: string = args[0];
+
+            if (isInSkipFolder(path)) {
+                // @ts-ignore
+                return originalRealPathSync(...args);
+            }
+
             const result = this.callMethodOnProcess('realpathSync', args);
 
             if (!args[1] || (args[1] && args[1].encoding === 'utf8')) {
@@ -121,9 +210,16 @@ class VirtualMachineContext {
             return result;
         }
 
+        const originalReadFileSync = this.wasmFs.fs.readFileSync;
         // @ts-ignore
         this.wasmFs.fs.readFileSync = (...args: any[]) => {
-            console.debug('⚙️ Calling readFileSync', args);
+            const filePath: string = args[0];
+
+            if (isInSkipFolder(filePath)) {
+                // @ts-ignore
+                return originalReadFileSync(...args);
+            }
+
             const result = this.callMethodOnProcess('readFileSync', args);
 
             if (!args[1] || args[1] === 'utf8' || (args[1] && args[1].encoding === 'utf8')) {
@@ -135,13 +231,11 @@ class VirtualMachineContext {
 
         const originalExistsSync = this.wasmFs.fs.existsSync;
         this.wasmFs.fs.existsSync = (path: TFilePath) => {
-            console.log('[EXISTS] path -> ', path);
             return originalExistsSync(path);
         }
 
         this.wasmFs.fs.readdirSync = (...args: any[]) => {
             const result = this.callMethodOnProcess('readdirSync', args);
-            console.debug('⚙️ Calling readdirSync', args);
 
             if (!args[1] || args[1] === 'utf8' || (args[1] && !args[1].encoding) || (args[1] && args[1].encoding === 'utf8')) {
                 return JSON.parse(result.toString());

@@ -13,5 +13,11 @@ export default function getValueFromMapping(key: string, mapping: {[ key: string
 
     // Key does not exist. Lets try stripping the first slash
     const slicedKey = key.slice(1);
-    return Buffer.from(mapping[slicedKey]);
+    const value = mapping[slicedKey];
+
+    if (!value) {
+        return null;
+    }
+
+    return Buffer.from(value);
 }

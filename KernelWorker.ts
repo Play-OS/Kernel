@@ -2,7 +2,9 @@ import * as Comlink from 'comlink';
 import { ProcessEnvOptions } from 'child_process';
 import VirtualMachine from './core/VirtualMachine';
 import { WasmFs } from '@wasmer/wasmfs';
+import { IoDevices } from "@wasmer/io-devices";
 import VirtualMachineContext from './core/VirtualMachineContext';
+import { workerRequest } from './services/workerUtils';
 
 class KernelWorker {
     binary: Uint8Array;
@@ -12,6 +14,11 @@ class KernelWorker {
     sharedValuesBuffer: SharedArrayBuffer;
     sharedNotifierBuffer: SharedArrayBuffer;
     context: VirtualMachineContext;
+    canvas: OffscreenCanvas;
+
+    setCanvas(canvas: OffscreenCanvas) {
+        this.canvas = canvas;
+    }
 
     async prepare(binary: Uint8Array, args: string[], options: ProcessEnvOptions) {
         this.binary = binary;
@@ -21,11 +28,44 @@ class KernelWorker {
         // This way we can always catch the synchrounus and asynchronous call
         // beforehand and map the real files on the fly
         this.wasmFs = new WasmFs();
-        this.wasmFs.fs.writeFileSync('/test.txt', 'Hello world');
+        const ioDevices = new IoDevices(this.wasmFs);
+
         this.sharedNotifierBuffer = new SharedArrayBuffer(4);
         this.sharedValuesBuffer = new SharedArrayBuffer(700000);
         this.context = new VirtualMachineContext(this.wasmFs, this.sharedNotifierBuffer, this.sharedValuesBuffer);
 
+        const context = this.canvas.getContext('2d');
+        let imageData: ImageData = null;
+        context.moveTo(0, 0);
+        context.lineTo(200, 100);
+        context.stroke();
+
+        ioDevices.setWindowSizeCallback(() => {
+            const windowSize = ioDevices.getWindowSize();
+            imageData = context.getImageData(0, 0, windowSize[0], windowSize[1]);
+        });
+
+        ioDevices.setBufferIndexDisplayCallback(() => {
+            const frameBuffer = ioDevices.getFrameBuffer();
+            imageData.data.set(frameBuffer);
+            context.putImageData(imageData, 0, 0);
+        });
+
+        this.context.on('error', (message: string) => {
+            workerRequest({
+                type: `context::error`,
+                value: message,
+                bufferIndex: 0,
+            });
+        });
+
+        this.context.on('message', (message: string) => {
+            workerRequest({
+                type: `context::message`,
+                value: message,
+                bufferIndex: 0,
+            });
+        });
 
         return {
             notifierBuffer: this.sharedNotifierBuffer,

@@ -1,4 +1,6 @@
 import * as Comlink from 'comlink';
+import { EventEmitter } from 'events';
+
 import KernelWorker from '../KernelWorker';
 import { ProcessEnvOptions } from 'child_process';
 import FileSystem from './FileSystem';
@@ -7,7 +9,7 @@ import { storeAndNotify } from '../services/sharedBufferUtils';
 import { numberToHex } from '../services/hexUtils';
 import stringToBytes from '../services/stringToBytes';
 
-class Process {
+class Process extends EventEmitter {
     args: string[];
     options: ProcessEnvOptions;
     bin: Uint8Array;
@@ -27,6 +29,8 @@ class Process {
      * @memberof Process
      */
     constructor(fs: FileSystem, bin: Uint8Array, args: string[], options?: ProcessEnvOptions) {
+        super();
+
         this.args = args;
         this.options = options;
         this.bin = bin;
@@ -52,6 +56,10 @@ class Process {
         } else if (methodToCall === 'readFileSync') {
             // @ts-ignore
             result = await this.fs.readFile(...message.value);
+        } else if (methodToCall === 'message') {
+            this.emit('message', message.value);
+        } else if (methodToCall === 'error') {
+            this.emit('error', message.value);
         } else {
             result = this.fs.wasmFs.fs[methodToCall].call(this, ...message.value);
         }
@@ -90,6 +98,13 @@ class Process {
         const worker = new Worker('../KernelWorker.ts', { type: 'module' });
         this.workerRaw = worker;
         this.worker = Comlink.wrap<KernelWorker>(worker);
+
+        const canvas: HTMLCanvasElement = document.querySelector('#windowCanvas');
+        const offscreenCanvas = canvas.transferControlToOffscreen();
+        // @ts-ignore
+        const transferableCanvas = Comlink.transfer(offscreenCanvas, [offscreenCanvas]);
+        await this.worker.setCanvas(transferableCanvas);
+
         const preparedResult = await this.worker.prepare(this.bin, this.args, this.options);
 
         this.valuesBuffer = preparedResult.valuesBuffer;

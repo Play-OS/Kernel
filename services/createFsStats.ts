@@ -10,9 +10,13 @@ import Stats from 'memfs/lib/Stats';
 export default function createFsStats(statsRaw: any) {
     const stats = new Stats();
 
-    Object.keys(statsRaw).forEach((key) => {
-        stats[key] = statsRaw[key];
-    });
+    if (statsRaw) {
+        Object.keys(statsRaw).forEach((key) => {
+            stats[key] = statsRaw[key];
+        });
+    } else {
+        console.error(statsRaw, stats);
+    }
 
     return stats;
 }

@@ -2,6 +2,8 @@ import WasmFs from '@wasmer/wasmfs';
 import WasmFsType from '@wasmer/wasmfs';
 import { TFileId, IReadFileOptions, TData, TFilePath, TMode, IMkdirOptions, TCallback, TFlags } from 'memfs/lib/volume';
 import { TDataOut, TEncodingExtended } from 'memfs/lib/encoding';
+import { EventEmitter } from 'events';
+
 import stringToBytes from '../services/stringToBytes';
 import Registry from './Registry';
 import IKernelProvider from '../interfaces/IKernelProvider';
@@ -9,6 +11,7 @@ import WasmParser from './WasmParser';
 import Dirent from 'memfs/lib/Dirent';
 import createDefaultDirectoryStructure from '../services/createDefaultDirectoryStructure';
 import getValueFromMapping from '../services/getValueFromMapping';
+import sleep from '../services/sleep';
 
 interface OpenFiles {
     [fd: number]: string;
@@ -20,7 +23,7 @@ interface FileSystemDirOptions {
     ignoreDotFiles?: boolean;
 }
 
-class FileSystem {
+class FileSystem extends EventEmitter {
     private registry: Registry;
 
     private provider: IKernelProvider;
@@ -34,6 +37,8 @@ class FileSystem {
     public wasmFs: WasmFsType;
 
     constructor(registry: Registry, provider: IKernelProvider) {
+        super();
+
         this.registry = registry;
         this.wasmFs = new WasmFs();
         this.provider = provider;
@@ -81,14 +86,15 @@ class FileSystem {
     }
 
     coupleFsToProvider() {
-        // Object.keys(this.wasmFs.fs).forEach((key) => {
-        //     const originalFunction = this.wasmFs.fs[key];
 
-        //     this.wasmFs.fs[key] = (...args: any[]) => {
-        //         console.log('[Fs] !!!! Not implemented: ', key);
-        //         return originalFunction(...args);
-        //     }
-        // });
+        Object.keys(this.wasmFs.fs).forEach((key) => {
+            const originalFunction = this.wasmFs.fs[key];
+
+            this.wasmFs.fs[key] = (...args: any[]) => {
+                // console.log('[Fs] !!!! Not implemented: ', key);
+                return originalFunction(...args);
+            }
+        });
 
         // VERGEET NIET de 0 en args weg te halen!!!!!
         const originalOpenSync = this.wasmFs.fs.openSync;
@@ -119,8 +125,6 @@ class FileSystem {
         // @ts-ignore
         this.wasmFs.fs.readFile = async (id: TFileId, options: string | IReadFileOptions, callback: any) => {
             try {
-                console.debug('🗂 Calling readFile', [id, options, callback], this.mapping);
-
                 // Device calls should not be interfered with
                 if (id.toString().startsWith('/dev') || id.toString().startsWith('dev')) {
                     if (options) {
@@ -141,21 +145,17 @@ class FileSystem {
 
         const originalReadFileSync = this.wasmFs.fs.readFileSync;
         this.wasmFs.fs.readFileSync = (file: TFileId, options?: string | IReadFileOptions) => {
-            console.debug('🗂 Calling readFileSync', [file, options]);
             return originalReadFileSync(file, options);
         }
 
         const originalReadSync = this.wasmFs.fs.readSync;
         this.wasmFs.fs.readSync = (...args: any[]) => {
-            console.debug('🗂 Calling readSync', args);
             // @ts-ignore
             return originalReadSync(...args);
         }
 
         const originalRead = this.wasmFs.fs.read;
         this.wasmFs.fs.read = async (...args: any[]) => {
-            console.debug('🗂 Calling read', args);
-
             // fd under 5 is one of the /dev/ files
             if (args[0] < 5) {
                 // @ts-ignore
@@ -174,18 +174,52 @@ class FileSystem {
             // We need to write to the correct position
             const position: number = args[4] === null ? 0 : args[4];
             const inputBuffer: Buffer = args[1];
+            const maxLengthToWrite: number = args[3];
             const bytesLength = file.length;
 
-            inputBuffer.set(file, position);
+            // Short circuit on no file lengths
+            if (file.length === 0) {
+                callback(null, bytesLength);
+            }
+
+            // Writing per byte bases. Making sure it gets the exact length it requested for
+            for (let i = position; i < maxLengthToWrite; i++) {
+                // We gone behond
+                if (i > file.length) {
+                    break;
+                }
+
+                // It possible that the read value is not available
+                inputBuffer.set([file.readUInt8(i)], i);
+            }
 
             return callback(null, bytesLength);
         }
+
+        const originalStatSync = this.wasmFs.fs.statSync;
+        this.wasmFs.fs.statSync = (...args: any) => {
+            console.debug('🗂 Calling statSync', args);
+            // @ts-ignore
+            const x = originalStatSync(...args);
+            x.blksize = x.blksize * 100;
+            x.blocks = x.blocks * 100;
+            x.size = x.size * 100;
+            x.ino = x.ino * 100;
+            console.log('[StatSync] x -> ', x);
+            return x;
+        };
 
         const originalFstatSync = this.wasmFs.fs.fstatSync;
         this.wasmFs.fs.fstatSync = (...args: any) => {
             console.debug('🗂 Calling fstatSync', args);
             // @ts-ignore
-            return originalFstatSync(...args);
+            const x = originalFstatSync(...args);
+            x.blksize = x.blksize * 2;
+            x.blocks = x.blocks * 2;
+            x.size = x.size * 2;
+            x.ino = x.ino * 2;
+
+            return x;
         }
     }
 
@@ -228,6 +262,10 @@ class FileSystem {
      * @memberof FileSystem
      */
     readFile(id: TFileId, options?: string | IReadFileOptions): Promise<TDataOut> {
+        if (!id) {
+            throw new Error(`Invalid argument id ${id}`);
+        }
+
         return new Promise((resolve, reject) => {
             this.wasmFs.fs.readFile(id, options, (error, data) => {
                 if (error) {

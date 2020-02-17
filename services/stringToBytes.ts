@@ -14,3 +14,14 @@ export default function stringToBytes(str: string): Uint8Array {
 
     return byteArray;
 }
+
+/**
+ * Converts bytes to a string
+ *
+ * @export
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+export function bytesToString(bytes: Uint8Array): string {
+    return new TextDecoder('utf-8').decode(bytes);
+}

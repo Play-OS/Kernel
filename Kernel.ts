@@ -53,9 +53,9 @@ class Kernel {
      * @returns {Promise<Process>}
      * @memberof Kernel
      */
-    async spawnProcess(bin: Uint8Array, args: string[], options: ProcessEnvOptions): Promise<string> {
+    async spawnProcess(bin: Uint8Array, args: string[], options: ProcessEnvOptions): Promise<Process> {
         const process = new Process(this.fs, bin, args, options);
-        return await process.spawn();
+        return process;
     }
 }
 
