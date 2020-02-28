@@ -1,6 +1,6 @@
 import WasmFs from '@wasmer/wasmfs';
 import WasmFsType from '@wasmer/wasmfs';
-import { TFileId, IReadFileOptions, TData, TFilePath, TMode, IMkdirOptions, TCallback, TFlags } from 'memfs/lib/volume';
+import { TFileId, IReadFileOptions, TData, TMode, IMkdirOptions } from 'memfs/lib/volume';
 import { TDataOut, TEncodingExtended } from 'memfs/lib/encoding';
 import { EventEmitter } from 'events';
 
@@ -11,7 +11,7 @@ import WasmParser from './WasmParser';
 import Dirent from 'memfs/lib/Dirent';
 import createDefaultDirectoryStructure from '../services/createDefaultDirectoryStructure';
 import getValueFromMapping from '../services/getValueFromMapping';
-import sleep from '../services/sleep';
+import { PathLike } from 'fs';
 
 interface OpenFiles {
     [fd: number]: string;
@@ -42,6 +42,7 @@ class FileSystem extends EventEmitter {
         this.registry = registry;
         this.wasmFs = new WasmFs();
         this.provider = provider;
+        this.mapping = {};
     }
 
     async init() {
@@ -76,7 +77,13 @@ class FileSystem extends EventEmitter {
             await createDefaultDirectoryStructure(this);
             await WasmParser.createDefaultApps(this);
         } else {
-            const fileMapRaw = (await this.provider.fetchFile(fileSystemMapId)).toString();
+            const fileMapBuffer = await this.provider.fetchFile(fileSystemMapId);
+
+            if (!fileMapBuffer) {
+                throw new Error('file map buffer could not be found while id was');
+            }
+
+            const fileMapRaw = fileMapBuffer.toString();
             const fileMap = JSON.parse(fileMapRaw);
 
             this.mapping = fileMap;
@@ -123,18 +130,24 @@ class FileSystem extends EventEmitter {
 
         const originalReadFile = this.wasmFs.fs.readFile;
         // @ts-ignore
-        this.wasmFs.fs.readFile = async (id: TFileId, options: string | IReadFileOptions, callback: any) => {
+        this.wasmFs.fs.readFile = async (id: TFileId, options: IReadFileOptions | string, callback: any) => {
             try {
                 // Device calls should not be interfered with
                 if (id.toString().startsWith('/dev') || id.toString().startsWith('dev')) {
                     if (options) {
+                        // @ts-ignore
                         return originalReadFile(id, options, callback);
                     }
 
                     return originalReadFile(id, callback);
                 }
 
-                const path = getValueFromMapping(id.toString(), this.mapping).toString();// Buffer.from(this.mapping[id.toString()]).toString();
+                const pathMappingValue = getValueFromMapping(id.toString(), this.mapping);
+                if (!pathMappingValue) {
+                    throw new Error('Path could not be retrieved from mapping');
+                }
+
+                const path = pathMappingValue.toString();
                 const file = await this.provider.fetchFile(path);
 
                 callback(null, file);
@@ -145,6 +158,7 @@ class FileSystem extends EventEmitter {
 
         const originalReadFileSync = this.wasmFs.fs.readFileSync;
         this.wasmFs.fs.readFileSync = (file: TFileId, options?: string | IReadFileOptions) => {
+            // @ts-ignore
             return originalReadFileSync(file, options);
         }
 
@@ -163,9 +177,9 @@ class FileSystem extends EventEmitter {
             }
 
             const callback = args[5];
-            const file = <Buffer> await this.readFile(this.openFiles[args[0]], {
+            const file = await this.readFile(this.openFiles[args[0]], {
                 encoding: 'buffer',
-            });
+            }) as Buffer;
 
             if (!file) {
                 return callback('No File found', null);
@@ -267,6 +281,7 @@ class FileSystem extends EventEmitter {
         }
 
         return new Promise((resolve, reject) => {
+            // @ts-ignore
             this.wasmFs.fs.readFile(id, options, (error, data) => {
                 if (error) {
                     reject(error);
@@ -300,12 +315,13 @@ class FileSystem extends EventEmitter {
     /**
      * Creates a directory in the filesystem
      *
-     * @param {TFilePath} path
+     * @param {PathLike} path
      * @returns {Promise<void>}
      * @memberof FileSystem
      */
-    makeDir(path: TFilePath, options?: TMode | IMkdirOptions): Promise<void> {
+    makeDir(path: PathLike, options?: TMode | IMkdirOptions): Promise<void> {
         return new Promise((resolve, reject) => {
+            // @ts-ignore
             this.wasmFs.fs.mkdir(path, options, (error: any) => {
                 if (error) {
                     reject(error);
@@ -319,15 +335,17 @@ class FileSystem extends EventEmitter {
     /**
      * Reads a directory
      *
-     * @param {TFilePath} path
+     * @param {PathLike} path
      * @returns {(Promise<TDataOut[] | Dirent[]>)}
      * @memberof FileSystem
      */
-    readDir(path: TFilePath, options?: FileSystemDirOptions): Promise<TDataOut[] | Dirent[]> {
+    readDir(path: PathLike, options?: FileSystemDirOptions): Promise<TDataOut[] | Dirent[]> {
         return new Promise((resolve, reject) => {
+            // @ts-ignore
             this.wasmFs.fs.readdir(path, {
-                encoding: options.encoding,
-                withFileTypes: options.withFileTypes,
+                // @ts-ignore
+                encoding: options?.encoding,
+                withFileTypes: options?.withFileTypes,
             }, (error: any, data: any) => {
                 let result = data;
 
@@ -354,11 +372,11 @@ class FileSystem extends EventEmitter {
     /**
      * Checks if the file exists or not
      *
-     * @param {TFilePath} path
+     * @param {PathLike} path
      * @returns
      * @memberof FileSystem
      */
-    exists(path: TFilePath) {
+    exists(path: PathLike) {
         return new Promise((resolve) => {
             this.wasmFs.fs.exists(path, (exists) => {
                 resolve(exists);

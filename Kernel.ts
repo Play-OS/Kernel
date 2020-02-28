@@ -4,7 +4,6 @@ import IKernelProvider from './interfaces/IKernelProvider';
 import VirtualMachine from './core/VirtualMachine';
 import Encryption from './core/Encryption';
 import WasmParser from './core/WasmParser';
-import KernelWorker from './KernelWorker';
 import { ProcessEnvOptions } from 'child_process';
 import Process from './core/Process';
 
@@ -17,31 +16,14 @@ class Kernel {
 
     encryption: Encryption;
 
-    privateSeed: string;
-
-    provider: IKernelProvider;
-
     wasmParser: WasmParser;
 
-    constructor(privateSeed: string, provider: IKernelProvider) {
-        this.privateSeed = privateSeed;
-        this.provider = provider;
-    }
-
-    /**
-     * "Boots" the kernel. This sets everything up (fs, vm, enc, etc)
-     *
-     * @memberof Kernel
-     */
-    async boot(): Promise<void> {
-        this.registry = new Registry({}, this.provider);
-        this.encryption = new Encryption(this.privateSeed);
-
-        await this.provider.init(this.encryption.createKey('provider'));
-
-        this.fs = await FileSystem.create(this.registry, this.provider);
-        this.wasmParser = new WasmParser(this.fs);
-        this.vm = new VirtualMachine(this.fs.wasmFs);
+    constructor(registry: Registry, fs: FileSystem, vm: VirtualMachine, encryption: Encryption, wasmParser: WasmParser) {
+        this.registry = registry;
+        this.fs = fs;
+        this.vm = vm;
+        this.encryption = encryption;
+        this.wasmParser = wasmParser;
     }
 
     /**
@@ -54,9 +36,26 @@ class Kernel {
      * @memberof Kernel
      */
     async spawnProcess(bin: Uint8Array, args: string[], options: ProcessEnvOptions): Promise<Process> {
+        if (!this.fs) {
+            throw new Error('System is not booted');
+        }
+
         const process = new Process(this.fs, bin, args, options);
         return process;
     }
+}
+
+export async function bootKernel(privateSeed: string, provider: IKernelProvider): Promise<Kernel> {
+    const registry = new Registry({}, provider);
+    const encryption = new Encryption(privateSeed);
+
+    await provider.init(encryption.createKey('provider'));
+
+    const fs = await FileSystem.create(registry, provider);
+    const wasmParser = new WasmParser(fs);
+    const vm = new VirtualMachine(fs.wasmFs);
+
+    return new Kernel(registry, fs, vm, encryption, wasmParser);
 }
 
 export default Kernel;

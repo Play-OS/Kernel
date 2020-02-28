@@ -25,7 +25,6 @@ class DesktopProvider implements IKernelProvider {
         const fs = __non_webpack_require__('fs');
 
         const splittedPath = path.split('/').filter(p => p);
-        const file = splittedPath.pop();
         const folderPath = splittedPath.join('/');
 
         if (!fs.existsSync(`${this.homeDir}${folderPath}`)) {
@@ -62,39 +61,39 @@ class DesktopProvider implements IKernelProvider {
     }
 
     async setMapping(mapping: {[key: string]: any}) {
-        return;
-        const fs = __non_webpack_require__('fs');
+        // return;
+        // const fs = __non_webpack_require__('fs');
 
-        this.mapping = mapping;
+        // this.mapping = mapping;
 
-        Object.keys(mapping).forEach((path) => {
-            // We are not sure if the folder exist already
-            const splittedPath = path.split('/').filter(p => p);
-            const file = splittedPath.pop();
-            const folderPath = splittedPath.join('/');
+        // Object.keys(mapping).forEach((path) => {
+        //     // We are not sure if the folder exist already
+        //     const splittedPath = path.split('/').filter(p => p);
+        //     const file = splittedPath.pop();
+        //     const folderPath = splittedPath.join('/');
 
-            if (!fs.existsSync(`${this.homeDir}${folderPath}`)) {
-                // Keep track of wich folder we are currently checking
-                let pathPart = '';
+        //     if (!fs.existsSync(`${this.homeDir}${folderPath}`)) {
+        //         // Keep track of wich folder we are currently checking
+        //         let pathPart = '';
 
-                // We are going over every single folder in the path
-                // and make sure the folder exists otherwise create it.
-                splittedPath.forEach((splittedPathPart) => {
-                    pathPart += splittedPathPart + '/';
+        //         // We are going over every single folder in the path
+        //         // and make sure the folder exists otherwise create it.
+        //         splittedPath.forEach((splittedPathPart) => {
+        //             pathPart += splittedPathPart + '/';
 
-                    if (!fs.existsSync(`${this.homeDir}${pathPart}`)) {
-                        fs.mkdirSync(`${this.homeDir}${pathPart}`, {
-                            recursive: true,
-                        });
-                    }
-                });
-            }
+        //             if (!fs.existsSync(`${this.homeDir}${pathPart}`)) {
+        //                 fs.mkdirSync(`${this.homeDir}${pathPart}`, {
+        //                     recursive: true,
+        //                 });
+        //             }
+        //         });
+        //     }
 
-            fs.writeFileSync(`${this.homeDir}${path}`, Buffer.from(mapping[path]));
-        });
+        //     fs.writeFileSync(`${this.homeDir}${path}`, Buffer.from(mapping[path]));
+        // });
 
-        // We normally should do a div and fill the mapping
-        console.log('[] this.mapping -> ', this.mapping);
+        // // We normally should do a div and fill the mapping
+        // console.log('[] this.mapping -> ', this.mapping);
     }
 
     setMappingListener(listener: (mapping: { [key: string]: string }) => void) {
@@ -115,7 +114,7 @@ class DesktopProvider implements IKernelProvider {
         await this.storeFile(value, `etc/${key}`);
     }
 
-    async fetchFile(id: string): Promise<Buffer> {
+    async fetchFile(id: string): Promise<Buffer | null> {
         const fs = __non_webpack_require__('fs');
 
         try {
@@ -125,7 +124,7 @@ class DesktopProvider implements IKernelProvider {
         }
     }
 
-    async storeFile(file: Buffer, path?: string): Promise<string> {
+    async storeFile(file: Buffer, path: string): Promise<string> {
         const fs = __non_webpack_require__('fs');
 
         this.mapping[path] = Buffer.from(stringToBytes(path)).toJSON();

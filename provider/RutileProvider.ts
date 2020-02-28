@@ -7,13 +7,13 @@ enum RutileMethods {
 }
 
 class RutileProvider implements IKernelProvider {
-    privateKey: string;
+    privateKey?: string;
 
     coreAddress: string;
 
     httpHost: string;
 
-    wallet: ethers.Wallet;
+    wallet?: ethers.Wallet;
 
     chainProvider: ethers.providers.JsonRpcProvider;
 
@@ -41,6 +41,10 @@ class RutileProvider implements IKernelProvider {
     }
 
     async storageGet(key: string) {
+        if (!this.wallet) {
+            throw new Error('init was not called');
+        }
+
         const keyBytes = ethers.utils.toUtf8Bytes(key);
         const keyHex = ethers.utils.hexlify(keyBytes);
 
@@ -71,6 +75,10 @@ class RutileProvider implements IKernelProvider {
     }
 
     async storageSet(key: string, value: any) {
+        if (!this.wallet) {
+            throw new Error('init was not called');
+        }
+
         const valueBytes = ethers.utils.toUtf8Bytes(value);
         const valueHex = ethers.utils.hexlify(valueBytes);
         const keyBytes = ethers.utils.toUtf8Bytes(key);

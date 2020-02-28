@@ -8,6 +8,7 @@ import IKernelProvider from '../interfaces/IKernelProvider';
  */
 class SyncProvider implements IKernelProvider {
     mainProvider: IKernelProvider;
+
     syncProviders: IKernelProvider[];
 
     constructor(mainProivder: IKernelProvider, syncProviders: IKernelProvider[]) {
@@ -16,14 +17,14 @@ class SyncProvider implements IKernelProvider {
     }
 
     async init(keys: string) {
-        const initPromises = this.syncProviders.map(provider => provider.init(keys));
+        const initPromises = this.syncProviders.map((provider) => provider.init(keys));
 
         await this.mainProvider.init(keys);
         await Promise.all(initPromises);
     }
 
     async setMapping(mapping: any) {
-        const setMappingPromises = this.syncProviders.map(provider => provider.setMapping(mapping));
+        const setMappingPromises = this.syncProviders.map((provider) => provider.setMapping(mapping));
 
         await this.mainProvider.setMapping(mapping);
         await Promise.all(setMappingPromises);
@@ -37,8 +38,8 @@ class SyncProvider implements IKernelProvider {
         return this.mainProvider.fetchFile(id);
     }
 
-    async storeFile(data: Buffer, path?: string) {
-        this.syncProviders.map(provider => provider.storeFile(data, path));
+    async storeFile(data: Buffer, path: string) {
+        this.syncProviders.map((provider) => provider.storeFile(data, path));
 
         return this.mainProvider.storeFile(data, path);
     }
@@ -48,7 +49,7 @@ class SyncProvider implements IKernelProvider {
     }
 
     async storageSet(key: string, value: string) {
-        this.syncProviders.map(provider => provider.storageSet(key, value));
+        this.syncProviders.map((provider) => provider.storageSet(key, value));
 
         await this.mainProvider.storageSet(key, value);
     }

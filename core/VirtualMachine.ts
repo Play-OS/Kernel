@@ -1,14 +1,10 @@
 import { WASI } from '@wasmer/wasi';
-import * as Comlink from 'comlink';
 // @ts-ignore
 import { lowerI64Imports } from "@wasmer/wasm-transformer";
-import FileSystem from './FileSystem';
-import KernalWorker from '../KernelWorker';
 import { WasmFs } from '@wasmer/wasmfs';
 
 class VirtualMachine {
     private wasmFs: WasmFs;
-    private kernalWorker: Comlink.Remote<KernalWorker>;
 
     constructor(wasmFs: WasmFs) {
         this.wasmFs = wasmFs;

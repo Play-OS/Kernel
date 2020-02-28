@@ -12,7 +12,7 @@ const ExplorerIcon = require('../apps/Explorer.wapp/icon.png');
 export interface ParsedApplicationInfo {
     manifest: Application;
     icon: Blob;
-    binary?: Uint8Array;
+    binary: Uint8Array | null;
     location: string;
 }
 
@@ -50,9 +50,9 @@ class WasmParser {
      * @memberof WasmParser
      */
     async parseManifest(manifest: Application, options?: ParseOptions, wappFolderPath: string = '/'): Promise<ParsedApplicationInfo> {
-        let iconBlob: Blob = null;
+        let iconBlob: Blob;
 
-        if (!manifest.playos.isPwa) {
+        if (!manifest.playos || !manifest.playos.isPwa) {
             // The icon is stored on disk
             const iconPath = path.resolve(wappFolderPath, manifest.icons[0].src);
             const iconRaw: any = await this.fs.readFile(iconPath);
@@ -64,7 +64,7 @@ class WasmParser {
             iconBlob = await iconResponse.blob();
         }
 
-        let binary: Uint8Array = null;
+        let binary: Uint8Array | null = null;
 
         if (options && options.includeBinary) {
             if (manifest.start_url.endsWith('.wasm')) {

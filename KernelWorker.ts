@@ -7,20 +7,24 @@ import VirtualMachineContext from './core/VirtualMachineContext';
 import { workerRequest } from './services/workerUtils';
 
 class KernelWorker {
-    binary: Uint8Array;
-    args: string[];
-    options: ProcessEnvOptions;
-    wasmFs: WasmFs;
-    sharedValuesBuffer: SharedArrayBuffer;
-    sharedNotifierBuffer: SharedArrayBuffer;
-    context: VirtualMachineContext;
-    canvas: OffscreenCanvas;
+    binary?: Uint8Array;
+    args?: string[];
+    options?: ProcessEnvOptions;
+    wasmFs?: WasmFs;
+    sharedValuesBuffer?: SharedArrayBuffer;
+    sharedNotifierBuffer?: SharedArrayBuffer;
+    context?: VirtualMachineContext;
+    canvas?: OffscreenCanvas;
 
     setCanvas(canvas: OffscreenCanvas) {
         this.canvas = canvas;
     }
 
-    async prepare(binary: Uint8Array, args: string[], options: ProcessEnvOptions) {
+    async prepare(binary: Uint8Array, args: string[], options?: ProcessEnvOptions) {
+        if (!this.canvas) {
+            throw new Error('Canvas should be available');
+        }
+
         this.binary = binary;
         this.args = args;
         this.options = options;
@@ -35,7 +39,12 @@ class KernelWorker {
         this.context = new VirtualMachineContext(this.wasmFs, this.sharedNotifierBuffer, this.sharedValuesBuffer);
 
         const context = this.canvas.getContext('2d');
-        let imageData: ImageData = null;
+
+        if (!context) {
+            throw new Error('Context could not be created');
+        }
+
+        let imageData: ImageData;
         context.moveTo(0, 0);
         context.lineTo(200, 100);
         context.stroke();
@@ -74,10 +83,14 @@ class KernelWorker {
     }
 
     async spawn() {
+        if (!this.wasmFs || !this.binary) {
+            throw new Error('Worker was not prepared');
+        }
+
         const vm = new VirtualMachine(this.wasmFs);
         const preparedBinary = await vm.prepareBin(this.binary);
 
-        const result = await vm.execute(preparedBinary, this.args, this.options.env);
+        const result = await vm.execute(preparedBinary, this.args, this.options?.env);
         return result;
     }
 }

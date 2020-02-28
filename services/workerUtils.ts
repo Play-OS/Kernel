@@ -10,7 +10,7 @@ export function workerPostMessage(message: RequestMessage) {
     self.postMessage(message);
 }
 
-export function workerRequest(message: RequestMessage, listenForChanges: boolean = true): Promise<RequestMessage> {
+export function workerRequest(message: RequestMessage, listenForChanges: boolean = true): Promise<RequestMessage | null> {
     return new Promise((resolve) => {
         message.id = Math.random().toString();
 

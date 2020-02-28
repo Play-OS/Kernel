@@ -1,5 +1,4 @@
 import { WasmFs } from "@wasmer/wasmfs";
-import { TFilePath, TFlags, IReaddirOptions, TFileId, IReadFileOptions } from "memfs/lib/volume";
 import { EventEmitter } from "events";
 
 import { workerRequest } from "../services/workerUtils";
@@ -8,6 +7,7 @@ import { toHex } from "../services/hexUtils";
 import createFsStats from "../services/createFsStats";
 import { bytesToString } from "../services/stringToBytes";
 import { ConsoleLevel } from '../models/Console';
+import { PathLike } from "fs";
 
 interface OpenFiles {
     fd: number;
@@ -17,7 +17,7 @@ interface OpenFiles {
 
 const SKIP_FOLDERS = [
     '/_wasmer',
-    '/dev'
+    '/dev',
 ];
 
 const CONSOLE_FD = [
@@ -230,7 +230,7 @@ class VirtualMachineContext extends EventEmitter {
         }
 
         const originalExistsSync = this.wasmFs.fs.existsSync;
-        this.wasmFs.fs.existsSync = (path: TFilePath) => {
+        this.wasmFs.fs.existsSync = (path: PathLike) => {
             return originalExistsSync(path);
         }
 

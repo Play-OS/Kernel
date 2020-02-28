@@ -22,7 +22,13 @@ class BrowserProvider implements IKernelProvider {
     }
 
     async fetchFile(id: string) {
-        return Buffer.from(JSON.parse(localStorage.getItem(id)));
+        const item = localStorage.getItem(id);
+
+        if (!item) {
+            return null;
+        }
+
+        return Buffer.from(JSON.parse(item));
     }
 
     async storeFile(file: Buffer, path?: string) {

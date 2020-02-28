@@ -6,7 +6,7 @@
  * @param {{[ key: string ]: any}} mapping
  * @returns {Buffer}
  */
-export default function getValueFromMapping(key: string, mapping: {[ key: string ]: any}): Buffer {
+export default function getValueFromMapping(key: string, mapping: {[ key: string ]: any}): Buffer | null {
     if (mapping[key]) {
         return Buffer.from(mapping[key]);
     }

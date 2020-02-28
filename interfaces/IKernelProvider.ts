@@ -4,8 +4,8 @@ export default interface IKernelProvider {
     setMappingListener(listener: (mapping: { [key: string]: any }) => void): void;
 
     storageSet(key: string, value: string): Promise<void>;
-    storageGet(key: string): Promise<string>;
+    storageGet(key: string): Promise<string | null>;
 
-    storeFile(data: Buffer, path?: string): Promise<string>;
-    fetchFile(id: string): Promise<Buffer>;
+    storeFile(data: Buffer, path: string): Promise<string>;
+    fetchFile(id: string): Promise<Buffer | null>;
 }

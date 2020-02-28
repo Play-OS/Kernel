@@ -4,21 +4,21 @@ import { EventEmitter } from 'events';
 import KernelWorker from '../KernelWorker';
 import { ProcessEnvOptions } from 'child_process';
 import FileSystem from './FileSystem';
-import { extractMessageFromEvent, RequestMessage, workerPostMessage } from '../services/workerUtils';
+import { RequestMessage } from '../services/workerUtils';
 import { storeAndNotify } from '../services/sharedBufferUtils';
 import { numberToHex } from '../services/hexUtils';
 import stringToBytes from '../services/stringToBytes';
 
 class Process extends EventEmitter {
     args: string[];
-    options: ProcessEnvOptions;
+    options?: ProcessEnvOptions;
     bin: Uint8Array;
-    worker: Comlink.Remote<KernelWorker>;
-    workerRaw: Worker;
+    worker?: Comlink.Remote<KernelWorker>;
+    workerRaw?: Worker;
     fs: FileSystem;
 
-    private notifierBuffer: SharedArrayBuffer;
-    private valuesBuffer: SharedArrayBuffer;
+    private notifierBuffer?: SharedArrayBuffer;
+    private valuesBuffer?: SharedArrayBuffer;
 
     /**
      * Creates an instance of Process.
@@ -38,9 +38,14 @@ class Process extends EventEmitter {
     }
 
     async onWorkerMessage(event: any) {
+        // Typescript checks
+        if (!this.valuesBuffer || !this.notifierBuffer) {
+            throw new Error('Worker message was called without spawn()');
+        }
+
         const message: RequestMessage = event.data;
 
-        if (!message.type || !message.type.startsWith('context::')) {
+        if (!message.type || !message.type.startsWith('context::') || !message.bufferIndex) {
             return;
         }
 
@@ -64,7 +69,7 @@ class Process extends EventEmitter {
             result = this.fs.wasmFs.fs[methodToCall].call(this, ...message.value);
         }
 
-        let bufferResult: Buffer = null;
+        let bufferResult: Buffer | null = null;
 
         if (result instanceof Uint8Array) {
             bufferResult = Buffer.from(result);
@@ -99,7 +104,12 @@ class Process extends EventEmitter {
         this.workerRaw = worker;
         this.worker = Comlink.wrap<KernelWorker>(worker);
 
-        const canvas: HTMLCanvasElement = document.querySelector('#windowCanvas');
+        const canvas: HTMLCanvasElement | null = document.querySelector('#windowCanvas');
+
+        if (!canvas) {
+            throw new Error('Could not run process without canvas');
+        }
+
         const offscreenCanvas = canvas.transferControlToOffscreen();
         // @ts-ignore
         const transferableCanvas = Comlink.transfer(offscreenCanvas, [offscreenCanvas]);
@@ -112,8 +122,8 @@ class Process extends EventEmitter {
 
         worker.addEventListener('message', this.onWorkerMessage.bind(this));
 
-        const output = await this.worker.spawn();
-        const fsOutput = <string> await this.fs.wasmFs.getStdOut();
+        // const output = await this.worker.spawn();
+        const fsOutput = await this.fs.wasmFs.getStdOut() as string;
         return fsOutput;
     }
 }

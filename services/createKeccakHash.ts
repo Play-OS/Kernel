@@ -1,3 +1,4 @@
+// @ts-ignore
 import * as keccak from 'keccak';
 
 /**
