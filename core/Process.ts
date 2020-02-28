@@ -8,6 +8,8 @@ import { RequestMessage } from '../services/workerUtils';
 import { storeAndNotify } from '../services/sharedBufferUtils';
 import { numberToHex } from '../services/hexUtils';
 import stringToBytes from '../services/stringToBytes';
+// @ts-ignore
+import createKernelWorker from 'workerize-loader?name=kernel-process!../KernelWorker'; // eslint-disable-line import/no-webpack-loader-syntax
 
 class Process extends EventEmitter {
     args: string[];
@@ -100,7 +102,7 @@ class Process extends EventEmitter {
     }
 
     async spawn(): Promise<string> {
-        const worker = new Worker('../KernelWorker.ts', { type: 'module' });
+        const worker: Worker = createKernelWorker();
         this.workerRaw = worker;
         this.worker = Comlink.wrap<KernelWorker>(worker);
 
