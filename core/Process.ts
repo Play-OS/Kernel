@@ -47,7 +47,8 @@ class Process extends EventEmitter {
 
         const message: RequestMessage = event.data;
 
-        if (!message.type || !message.type.startsWith('context::') || !message.bufferIndex) {
+        if (!message.type || !message.type.startsWith('context::') || typeof message.bufferIndex === 'undefined') {
+            console.warn('Skipping worker message: ', message);
             return;
         }
 
@@ -64,8 +65,10 @@ class Process extends EventEmitter {
             // @ts-ignore
             result = await this.fs.readFile(...message.value);
         } else if (methodToCall === 'message') {
+            console.log(message.value);
             this.emit('message', message.value);
         } else if (methodToCall === 'error') {
+            console.log(message.value);
             this.emit('error', message.value);
         } else {
             result = this.fs.wasmFs.fs[methodToCall].call(this, ...message.value);
@@ -101,12 +104,52 @@ class Process extends EventEmitter {
         storeAndNotify(this.notifierBuffer, message.bufferIndex, 1)
     }
 
+    async handleFileMessage(event: any) {
+        if (!this.valuesBuffer || !this.notifierBuffer) {
+            throw new Error('Worker message was called without spawn()');
+        }
+
+        const message: RequestMessage = event.data;
+        const methodToCall = message.type.replace('file::', '');
+
+        if (!methodToCall || !message.type.startsWith('file::') || typeof message.bufferIndex === 'undefined') {
+            return;
+        }
+
+        let bufferResult: Buffer | null = null;
+
+        if (methodToCall === 'fetchFile') {
+            const path: string = message.value[0];
+
+            if (path !== '/' && path.endsWith('a.gb')) {
+                bufferResult = await this.fs.readFile(path) as Buffer;
+            }
+        }
+
+        if (bufferResult) {
+            const u8ValuesBuffer = new Uint8Array(this.valuesBuffer);
+
+            // Clear the shared values
+            u8ValuesBuffer.fill(0, 0, u8ValuesBuffer.length);
+
+            // Set the actual data
+            u8ValuesBuffer.set(bufferResult);
+        }
+
+        storeAndNotify(this.notifierBuffer, message.bufferIndex, 1);
+    }
+
     async spawn(): Promise<string> {
         const worker: Worker = createKernelWorker();
         this.workerRaw = worker;
         this.worker = Comlink.wrap<KernelWorker>(worker);
 
-        const canvas: HTMLCanvasElement | null = document.querySelector('#windowCanvas');
+        const oldCanvas = document.querySelector('canvas');
+        oldCanvas && oldCanvas.remove();
+
+        const canvas: HTMLCanvasElement | null = document.createElement('canvas');
+        canvas.className = 'CanvasYo';
+        document.body.appendChild(canvas);
 
         if (!canvas) {
             throw new Error('Could not run process without canvas');
@@ -117,14 +160,20 @@ class Process extends EventEmitter {
         const transferableCanvas = Comlink.transfer(offscreenCanvas, [offscreenCanvas]);
         await this.worker.setCanvas(transferableCanvas);
 
-        const preparedResult = await this.worker.prepare(this.bin, this.args, this.options);
+        this.fs.toJSON();
+
+        console.log('[Fs] this.fs -> ', this.fs);
+
+        const preparedResult = await this.worker.prepare(this.bin, this.fs.toJSON(), this.args, this.options);
 
         this.valuesBuffer = preparedResult.valuesBuffer;
         this.notifierBuffer = preparedResult.notifierBuffer;
 
         worker.addEventListener('message', this.onWorkerMessage.bind(this));
+        worker.addEventListener('message', this.handleFileMessage.bind(this))
 
-        // const output = await this.worker.spawn();
+        const output = await this.worker.spawn();
+        console.log('[] output -> ', output);
         const fsOutput = await this.fs.wasmFs.getStdOut() as string;
         return fsOutput;
     }

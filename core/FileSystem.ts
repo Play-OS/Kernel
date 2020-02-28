@@ -23,13 +23,17 @@ interface FileSystemDirOptions {
     ignoreDotFiles?: boolean;
 }
 
+export interface FsMapping {
+    [key: string]: any;
+}
+
 class FileSystem extends EventEmitter {
     private registry: Registry;
 
     private provider: IKernelProvider;
 
     // Mapping of path -> location of file
-    private mapping: {[ key: string ]: any};
+    public mapping: FsMapping;
     private mappingSynced: boolean = true;
     private mappingSyncIntervalId: any;
     private openFiles: OpenFiles = {};
@@ -144,7 +148,7 @@ class FileSystem extends EventEmitter {
 
                 const pathMappingValue = getValueFromMapping(id.toString(), this.mapping);
                 if (!pathMappingValue) {
-                    throw new Error('Path could not be retrieved from mapping');
+                    throw new Error(`Path ${id} could not be retrieved from mapping`);
                 }
 
                 const path = pathMappingValue.toString();
@@ -382,6 +386,24 @@ class FileSystem extends EventEmitter {
                 resolve(exists);
             })
         });
+    }
+
+    /**
+     * Converts the filesystem to a mapping
+     *
+     * @returns
+     * @memberof FileSystem
+     */
+    toJSON() {
+        const result = {};
+
+        Object.keys(this.mapping).forEach((mappingKey) => {
+            result[mappingKey] = Buffer.from(mappingKey);
+        });
+
+        console.log('[] result -> ', result);
+
+        return result;
     }
 
     /**

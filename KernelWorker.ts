@@ -5,6 +5,7 @@ import { WasmFs } from '@wasmer/wasmfs';
 import { IoDevices } from "@wasmer/io-devices";
 import VirtualMachineContext from './core/VirtualMachineContext';
 import { workerRequest } from './services/workerUtils';
+import { FsMapping } from './core/FileSystem';
 
 class KernelWorker {
     binary?: Uint8Array;
@@ -20,7 +21,7 @@ class KernelWorker {
         this.canvas = canvas;
     }
 
-    async prepare(binary: Uint8Array, args: string[], options?: ProcessEnvOptions) {
+    async prepare(binary: Uint8Array, fsMapping: FsMapping, args: string[], options?: ProcessEnvOptions) {
         if (!this.canvas) {
             throw new Error('Canvas should be available');
         }
@@ -32,11 +33,12 @@ class KernelWorker {
         // This way we can always catch the synchrounus and asynchronous call
         // beforehand and map the real files on the fly
         this.wasmFs = new WasmFs();
+        this.wasmFs.fromJSON(fsMapping);
         const ioDevices = new IoDevices(this.wasmFs);
 
         this.sharedNotifierBuffer = new SharedArrayBuffer(4);
         this.sharedValuesBuffer = new SharedArrayBuffer(700000);
-        this.context = new VirtualMachineContext(this.wasmFs, this.sharedNotifierBuffer, this.sharedValuesBuffer);
+        this.context = new VirtualMachineContext(this.wasmFs, fsMapping, this.sharedNotifierBuffer, this.sharedValuesBuffer);
 
         const context = this.canvas.getContext('2d');
 
@@ -49,15 +51,25 @@ class KernelWorker {
         context.lineTo(200, 100);
         context.stroke();
 
+        let windowSizeW = 160;
+        let windowSizeH = 144;
+
+        // let frame: Uint8Array = new Uint8Array();
+
         ioDevices.setWindowSizeCallback(() => {
             const windowSize = ioDevices.getWindowSize();
+            windowSizeW = windowSize[0];
+            windowSizeH = windowSize[1];
             imageData = context.getImageData(0, 0, windowSize[0], windowSize[1]);
         });
 
         ioDevices.setBufferIndexDisplayCallback(() => {
-            const frameBuffer = ioDevices.getFrameBuffer();
-            imageData.data.set(frameBuffer);
-            context.putImageData(imageData, 0, 0);
+            setImmediate(() => {
+                const frameBuffer = ioDevices.getFrameBuffer();
+                console.log('[] frameBuffer -> ', frameBuffer);
+                imageData.data.set(frameBuffer);
+                context.putImageData(imageData, 0, 0);
+            });
         });
 
         this.context.on('error', (message: string) => {
