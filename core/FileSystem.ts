@@ -4,7 +4,7 @@ import { TFileId, IReadFileOptions, TData, TMode, IMkdirOptions } from 'memfs/li
 import { TDataOut, TEncodingExtended } from 'memfs/lib/encoding';
 import { EventEmitter } from 'events';
 
-import stringToBytes from '../services/stringToBytes';
+import stringToBytes, { bytesToString } from '../services/stringToBytes';
 import Registry from './Registry';
 import IKernelProvider from '../interfaces/IKernelProvider';
 import WasmParser from './WasmParser';
@@ -87,25 +87,24 @@ class FileSystem extends EventEmitter {
                 throw new Error('file map buffer could not be found while id was');
             }
 
-            const fileMapRaw = fileMapBuffer.toString();
+            const fileMapRaw = bytesToString(fileMapBuffer);
             const fileMap = JSON.parse(fileMapRaw);
 
             this.mapping = fileMap;
             this.wasmFs.fromJSON(fileMap);
-            this.provider.setMapping(fileMap);
         }
     }
 
     coupleFsToProvider() {
 
-        Object.keys(this.wasmFs.fs).forEach((key) => {
-            const originalFunction = this.wasmFs.fs[key];
+        // Object.keys(this.wasmFs.fs).forEach((key) => {
+        //     const originalFunction = this.wasmFs.fs[key];
 
-            this.wasmFs.fs[key] = (...args: any[]) => {
-                // console.log('[Fs] !!!! Not implemented: ', key);
-                return originalFunction(...args);
-            }
-        });
+        //     this.wasmFs.fs[key] = (...args: any[]) => {
+        //         // console.log('[Fs] !!!! Not implemented: ', key);
+        //         return originalFunction(...args);
+        //     }
+        // });
 
         // VERGEET NIET de 0 en args weg te halen!!!!!
         const originalOpenSync = this.wasmFs.fs.openSync;
@@ -136,6 +135,7 @@ class FileSystem extends EventEmitter {
         // @ts-ignore
         this.wasmFs.fs.readFile = async (id: TFileId, options: IReadFileOptions | string, callback: any) => {
             try {
+                console.debug('🗂 Calling readFile', [id, options, callback]);
                 // Device calls should not be interfered with
                 if (id.toString().startsWith('/dev') || id.toString().startsWith('dev')) {
                     if (options) {
@@ -160,20 +160,9 @@ class FileSystem extends EventEmitter {
             }
         }
 
-        const originalReadFileSync = this.wasmFs.fs.readFileSync;
-        this.wasmFs.fs.readFileSync = (file: TFileId, options?: string | IReadFileOptions) => {
-            // @ts-ignore
-            return originalReadFileSync(file, options);
-        }
-
-        const originalReadSync = this.wasmFs.fs.readSync;
-        this.wasmFs.fs.readSync = (...args: any[]) => {
-            // @ts-ignore
-            return originalReadSync(...args);
-        }
-
         const originalRead = this.wasmFs.fs.read;
         this.wasmFs.fs.read = async (...args: any[]) => {
+            console.debug('🗂 Calling read', args);
             // fd under 5 is one of the /dev/ files
             if (args[0] < 5) {
                 // @ts-ignore
@@ -255,6 +244,7 @@ class FileSystem extends EventEmitter {
         // could occur where a new file has been written in between syncs
         this.mappingSynced = true;
 
+        console.log('Wat???');
         const fileId = await this.provider.storeFile(Buffer.from(stringToBytes(JSON.stringify(this.mapping))), '/.fs_map');
         await this.registry.set('fs_map', fileId, false);
     }

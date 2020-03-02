@@ -107,6 +107,6 @@ class KernelWorker {
     }
 }
 
-Comlink.expose(new KernelWorker());
+Comlink.expose(KernelWorker);
 
 export default KernelWorker;

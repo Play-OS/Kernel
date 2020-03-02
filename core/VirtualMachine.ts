@@ -25,38 +25,29 @@ class VirtualMachine {
     }
 
     async execute(bin: Uint8Array, args: string[] = [], env: any = {}): Promise<string> {
-        try {
-            const wasi = new WASI({
-                preopenDirectories: {
-                    '/': '/',
-                },
-                args,
-                env,
-                bindings: {
-                    ...WASI.defaultBindings,
-                    fs: this.wasmFs.fs,
-                }
-            });
+        const wasi = new WASI({
+            preopenDirectories: {
+                '/': '/',
+            },
+            args,
+            env,
+            bindings: {
+                ...WASI.defaultBindings,
+                fs: this.wasmFs.fs,
+            }
+        });
 
-            const wasmBytes = bin.buffer;
+        const wasmBytes = bin.buffer;
 
-            const { instance } = await WebAssembly.instantiate(wasmBytes, {
-                wasi_unstable: wasi.wasiImport,
-            });
+        const { instance } = await WebAssembly.instantiate(wasmBytes, {
+            wasi_unstable: wasi.wasiImport,
+        });
 
-            wasi.start(instance);
+        wasi.start(instance);
 
-            const stdout = await this.wasmFs.getStdOut();
+        const stdout = await this.wasmFs.getStdOut();
 
-            return stdout as string;
-        } catch (error) {
-            const output = await this.wasmFs.getStdOut()
-
-            console.error(`⛔️ An error occured while running a binary`, error);
-            console.error(`⛔️ Output of StdOut after crash`, output);
-
-            return output as string;
-        }
+        return stdout as string;
     }
 }
 
