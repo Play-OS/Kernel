@@ -33,3 +33,7 @@ export function numberToHex(num: number, padBytes: number = 2) {
 
     return result;
 }
+
+export function bufferToNumber(buffer: Buffer): number {
+    return parseInt(buffer.toString('hex'), 16);
+}

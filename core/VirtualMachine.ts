@@ -24,7 +24,8 @@ class VirtualMachine {
         return loweredBinary;
     }
 
-    async execute(bin: Uint8Array, args: string[] = [], env: any = {}): Promise<string> {
+    async execute(bin: Uint8Array, args: string[] = [], env: any = {}): Promise<void> {
+        console.log('[] WASI.defaultBindings -> ', WASI.defaultBindings);
         const wasi = new WASI({
             preopenDirectories: {
                 '/': '/',
@@ -38,16 +39,11 @@ class VirtualMachine {
         });
 
         const wasmBytes = bin.buffer;
-
         const { instance } = await WebAssembly.instantiate(wasmBytes, {
             wasi_unstable: wasi.wasiImport,
         });
 
         wasi.start(instance);
-
-        const stdout = await this.wasmFs.getStdOut();
-
-        return stdout as string;
     }
 }
 

@@ -5,6 +5,12 @@ import IKernelProvider from '../../interfaces/IKernelProvider';
 import Registry from '../Registry';
 import VirtualMachine from '../VirtualMachine';
 import { EventEmitter } from 'events';
+import { bytesToString } from '../../services/stringToBytes';
+import FileSystemWorker from './FileSystemWorker';
+import createVirtualFs from './ProcessVirtualFs';
+import { WasmFs } from '@wasmer/wasmfs';
+import postWorkerMessage from './helpers/postWorkerMessage';
+import { DirectoryJSON } from 'memfs/lib/volume';
 
 export interface ProcessWorkerParams {
     binary: Uint8Array;
@@ -24,7 +30,7 @@ export class ProcessWorker extends EventEmitter {
 
     provider: IKernelProvider;
 
-    fs?: FileSystem;
+    fs?: WasmFs;
 
     constructor(params: ProcessWorkerParams, provider: IKernelProvider) {
         super();
@@ -36,23 +42,22 @@ export class ProcessWorker extends EventEmitter {
         this.provider = provider;
     }
 
-    async init() {
-        this.fs = await FileSystem.create(new Registry({}, this.provider), this.provider);
-    }
-
     async spawn() {
         try {
-            if (!this.fs) {
-                throw new Error('File system was missing');
-            }
-            const vm = new VirtualMachine(this.fs.wasmFs);
+            this.fs = await createVirtualFs();
+            const vm = new VirtualMachine(this.fs);
             const preparedBinary = await vm.prepareBin(this.binary);
-            const result = await vm.execute(preparedBinary, this.args, this.options);
-            console.log('[] result -> ', result);
+            await vm.execute(preparedBinary, this.args, this.options);
+
             this.emit('exit', 0);
         } catch (error) {
+            if (error.code === 0) {
+                this.emit('exit', 0);
+                return;
+            }
+
             console.error('[Process exited]', error);
-            console.error('[Process exited]', await this.fs?.wasmFs.getStdOut());
+            console.error('[Process exited]', await this.fs?.getStdOut());
             this.emit('exit', 1);
         }
     }
@@ -60,8 +65,6 @@ export class ProcessWorker extends EventEmitter {
 
 export async function spawnProcessWorker(params: ProcessWorkerParams, provider: IKernelProvider): Promise<ProcessWorker> {
     const processWorker = new ProcessWorker(params, provider);
-    console.log('[] provider -> ', provider);
-    await processWorker.init();
     return Comlink.proxy(processWorker);
 }
 

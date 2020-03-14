@@ -27,6 +27,21 @@ export interface FsMapping {
     [key: string]: any;
 }
 
+const SKIP_FOLDERS = [
+    '/_wasmer',
+    '/dev',
+];
+
+const CONSOLE_FD = [
+    0,
+    1,
+    2,
+];
+
+function isInSkipFolder(path: string): boolean {
+    return !!SKIP_FOLDERS.find((folder) => path.startsWith(folder));
+}
+
 class FileSystem extends EventEmitter {
     private registry: Registry;
 
@@ -106,13 +121,19 @@ class FileSystem extends EventEmitter {
         //     }
         // });
 
-        // VERGEET NIET de 0 en args weg te halen!!!!!
         const originalOpenSync = this.wasmFs.fs.openSync;
         this.wasmFs.fs.openSync = (...args: any[]) => {
             console.debug('🗂 Calling openSync', args);
+            const path = args[0];
+
+            if (!isInSkipFolder(path)) {
+                const mapping = this.wasmFs.toJSON();
+                // mapping[path] =
+            }
+
             // @ts-ignore
             const fd = originalOpenSync(...args);
-            this.openFiles[fd] = args[0];
+            this.openFiles[fd] = path;
             return fd;
         }
 
@@ -159,6 +180,19 @@ class FileSystem extends EventEmitter {
                 callback(error, null);
             }
         }
+
+        const originalWriteSync = this.wasmFs.fs.writeSync;
+        this.wasmFs.fs.writeSync = (...args: any[]) => {
+            console.debug('🗂 Calling write', args);
+            const fd = args[0];
+
+            if (CONSOLE_FD.includes(fd)) {
+                this.emit('message', args[1]);
+            }
+
+            // @ts-ignore
+            return originalWriteSync(...args);
+        };
 
         const originalRead = this.wasmFs.fs.read;
         this.wasmFs.fs.read = async (...args: any[]) => {
@@ -207,26 +241,14 @@ class FileSystem extends EventEmitter {
         this.wasmFs.fs.statSync = (...args: any) => {
             console.debug('🗂 Calling statSync', args);
             // @ts-ignore
-            const x = originalStatSync(...args);
-            x.blksize = x.blksize * 100;
-            x.blocks = x.blocks * 100;
-            x.size = x.size * 100;
-            x.ino = x.ino * 100;
-            console.log('[StatSync] x -> ', x);
-            return x;
+            return originalStatSync(...args);
         };
 
         const originalFstatSync = this.wasmFs.fs.fstatSync;
         this.wasmFs.fs.fstatSync = (...args: any) => {
             console.debug('🗂 Calling fstatSync', args);
             // @ts-ignore
-            const x = originalFstatSync(...args);
-            x.blksize = x.blksize * 2;
-            x.blocks = x.blocks * 2;
-            x.size = x.size * 2;
-            x.ino = x.ino * 2;
-
-            return x;
+            return originalFstatSync(...args);
         }
     }
 
@@ -390,8 +412,6 @@ class FileSystem extends EventEmitter {
         Object.keys(this.mapping).forEach((mappingKey) => {
             result[mappingKey] = Buffer.from(mappingKey);
         });
-
-        console.log('[] result -> ', result);
 
         return result;
     }

@@ -14,6 +14,8 @@ export default async function createDefaultDirectoryStructure(fs: FileSystem, us
         recursive: true,
     });
 
+    await fs.makeDir('/bin/');
+
     await fs.writeFile('/etc/.keep', '');
     await fs.writeFile(`/home/${username}/.keep`, '');
     await fs.writeFile(`/Applications/.keep`, '');
