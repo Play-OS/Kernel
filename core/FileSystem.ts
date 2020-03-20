@@ -49,8 +49,8 @@ class FileSystem extends EventEmitter {
 
     // Mapping of path -> location of file
     public mapping: FsMapping;
-    private mappingSynced: boolean = true;
     private mappingSyncIntervalId: any;
+    private mappingSynced: boolean = true;
     private openFiles: OpenFiles = {};
 
     public wasmFs: WasmFsType;
@@ -84,6 +84,10 @@ class FileSystem extends EventEmitter {
         }
 
         if (!fileSystemMapId) {
+            // Create our default folders
+            await createDefaultDirectoryStructure(this);
+            await WasmParser.createDefaultApps(this);
+
             const fsBundle = this.wasmFs.toJSON();
             const fileId = await this.provider.storeFile(Buffer.from(stringToBytes(JSON.stringify(fsBundle))), '/.fs_map');
 
@@ -91,10 +95,6 @@ class FileSystem extends EventEmitter {
 
             this.mapping = fsBundle;
             this.provider.setMapping(fsBundle);
-
-            // Create our default folders
-            await createDefaultDirectoryStructure(this);
-            await WasmParser.createDefaultApps(this);
         } else {
             const fileMapBuffer = await this.provider.fetchFile(fileSystemMapId);
 
@@ -123,7 +123,7 @@ class FileSystem extends EventEmitter {
 
         const originalOpenSync = this.wasmFs.fs.openSync;
         this.wasmFs.fs.openSync = (...args: any[]) => {
-            console.debug('🗂 Calling openSync', args);
+            // console.debug('🗂 Calling openSync', args);
             const path = args[0];
 
             if (!isInSkipFolder(path)) {
@@ -141,7 +141,7 @@ class FileSystem extends EventEmitter {
         // @ts-ignore
         this.wasmFs.fs.writeFile = async (id: any, data: any, options: any, callback: any) => {
             // Resources are saved in location ids. This way virtual file systems can work aswell
-            console.debug('🗂 Calling writeFile', [id, data, options, callback]);
+            // console.debug('🗂 Calling writeFile', [id, data, options, callback]);
             const locationId = await this.provider.storeFile(data, id);
 
             // Set the mapping correctly
@@ -156,7 +156,7 @@ class FileSystem extends EventEmitter {
         // @ts-ignore
         this.wasmFs.fs.readFile = async (id: TFileId, options: IReadFileOptions | string, callback: any) => {
             try {
-                console.debug('🗂 Calling readFile', [id, options, callback]);
+                // console.debug('🗂 Calling readFile', [id, options, callback]);
                 // Device calls should not be interfered with
                 if (id.toString().startsWith('/dev') || id.toString().startsWith('dev')) {
                     if (options) {
@@ -183,7 +183,7 @@ class FileSystem extends EventEmitter {
 
         const originalWriteSync = this.wasmFs.fs.writeSync;
         this.wasmFs.fs.writeSync = (...args: any[]) => {
-            console.debug('🗂 Calling write', args);
+            // console.debug('🗂 Calling write', args);
             const fd = args[0];
 
             if (CONSOLE_FD.includes(fd)) {
@@ -196,7 +196,7 @@ class FileSystem extends EventEmitter {
 
         const originalRead = this.wasmFs.fs.read;
         this.wasmFs.fs.read = async (...args: any[]) => {
-            console.debug('🗂 Calling read', args);
+            // console.debug('🗂 Calling read', args);
             // fd under 5 is one of the /dev/ files
             if (args[0] < 5) {
                 // @ts-ignore
@@ -239,14 +239,14 @@ class FileSystem extends EventEmitter {
 
         const originalStatSync = this.wasmFs.fs.statSync;
         this.wasmFs.fs.statSync = (...args: any) => {
-            console.debug('🗂 Calling statSync', args);
+            // console.debug('🗂 Calling statSync', args);
             // @ts-ignore
             return originalStatSync(...args);
         };
 
         const originalFstatSync = this.wasmFs.fs.fstatSync;
         this.wasmFs.fs.fstatSync = (...args: any) => {
-            console.debug('🗂 Calling fstatSync', args);
+            // console.debug('🗂 Calling fstatSync', args);
             // @ts-ignore
             return originalFstatSync(...args);
         }
@@ -266,7 +266,6 @@ class FileSystem extends EventEmitter {
         // could occur where a new file has been written in between syncs
         this.mappingSynced = true;
 
-        console.log('Wat???');
         const fileId = await this.provider.storeFile(Buffer.from(stringToBytes(JSON.stringify(this.mapping))), '/.fs_map');
         await this.registry.set('fs_map', fileId, false);
     }

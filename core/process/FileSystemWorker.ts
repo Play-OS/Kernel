@@ -9,30 +9,18 @@ import { createTargetedPostMessageInstance } from './helpers/postWorkerMessage';
 import { postMethodResultLengthToProcess } from './helpers/processMethodCalling';
 import convertToBuffer from '../../services/convertToBuffer';
 import { storeAndNotify } from '../../services/sharedBufferUtils';
+import attachIoDevicesToFs from './ProcessIoDevices';
 
 export enum FileSystemWorkerTypes {
     Init = 'FSW:Init',
 }
 
-interface InitParams {
-    provider: IKernelProvider;
+interface Params {
+    canvas: OffscreenCanvas;
 }
 
 const PROCESS_TARGET_NAME = 'process';
 const FS_TARGET_NAME = 'fileSystem';
-
-function initFileSystemWorker(params: InitParams) {
-    console.log('Hey!', params.provider.storageGet('hi'));
-}
-
-// eslint-disable-next-line no-restricted-globals
-self.addEventListener('message', (message: MessageEvent) => {
-    switch(message.data.type) {
-        case FileSystemWorkerTypes.Init:
-            initFileSystemWorker(message.data.value);
-        break;
-    }
-});
 
 export default class FileSystemWorker extends EventEmitter {
     fs?: FileSystem;
@@ -45,15 +33,20 @@ export default class FileSystemWorker extends EventEmitter {
 
     methodCallResult?: Buffer;
 
-    constructor(params: any, provider: IKernelProvider) {
+    canvas: OffscreenCanvas;
+
+    constructor(params: Params, provider: IKernelProvider) {
         super();
 
+        this.canvas = params.canvas;
         this.provider = provider;
     }
 
     async init() {
         this.fs = await FileSystem.create(new Registry({}, this.provider), this.provider);
         this.fs.on('message', (message: Uint8Array) => this.emit('message', bytesToString(message)));
+
+        // attachIoDevicesToFs(this.fs.wasmFs, this.canvas);
 
         attachMethodsToMessages(FS_TARGET_NAME, [
             this.getFsMapping.bind(this),
@@ -107,8 +100,11 @@ export default class FileSystemWorker extends EventEmitter {
     }
 }
 
-export async function spawnFileSystem(params: any, provider: IKernelProvider) {
-    const fs = new FileSystemWorker(params, provider);
+export async function spawnFileSystem(params: any, provider: IKernelProvider, canvas: OffscreenCanvas) {
+    const fs = new FileSystemWorker({
+        ...params,
+        // canvas,
+    }, provider);
     await fs.init();
     return Comlink.proxy(fs);
 }

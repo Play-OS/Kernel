@@ -8,6 +8,7 @@ import FileSystem from '../core/FileSystem';
  * @param {string} [username='root']
  */
 export default async function createDefaultDirectoryStructure(fs: FileSystem, username: string = 'root') {
+    console.log('Creating folder structure..');
     await fs.makeDir('/Applications/');
     await fs.makeDir('/etc/');
     await fs.makeDir(`/home/${username}/`, {

@@ -1,7 +1,6 @@
 import * as path from 'path';
 import FileSystem from './FileSystem';
 import Application from '../models/Application';
-import stringToBytes from '../services/stringToBytes';
 
 const AirhornerWappJson = require('../apps/Airhorner.wapp/manifest.json');
 const TerminalWappJson = require('../apps/Terminal.wapp/manifest.json');
@@ -84,12 +83,15 @@ class WasmParser {
     }
 
     static async createDefaultApps(fs: FileSystem) {
-        await fs.makeDir('/Applications/Airhorner.wapp/');
+        console.log('Creating defualt apps');
+        await fs.makeDir('/Applications/Airhorner.wapp/', { recursive: true });
         await fs.makeDir('/Applications/Terminal.wapp/');
         await fs.makeDir('/Applications/Files.wapp/');
 
-        const terminalPng = stringToBytes(atob(TerminalIcon.replace('data:image/png;base64,', '')));
-        const explorerPng = stringToBytes(atob(ExplorerIcon.replace('data:image/png;base64,', '')));
+        const terminalPng = new Uint8Array(await (await fetch(TerminalIcon)).arrayBuffer());
+        const explorerPng = new Uint8Array(await (await fetch(ExplorerIcon)).arrayBuffer());
+        // const terminalPng = stringToBytes(atob(TerminalIcon.replace('data:image/png;base64,', '')));
+        // const explorerPng = stringToBytes(atob(ExplorerIcon.replace('data:image/png;base64,', '')));
 
         await fs.writeFile('/Applications/Airhorner.wapp/manifest.json', JSON.stringify(AirhornerWappJson));
         await fs.writeFile('/Applications/Files.wapp/manifest.json', JSON.stringify(ExplorerWappJson));

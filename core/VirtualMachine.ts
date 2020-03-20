@@ -25,13 +25,21 @@ class VirtualMachine {
     }
 
     async execute(bin: Uint8Array, args: string[] = [], env: any = {}): Promise<void> {
-        console.log('[] WASI.defaultBindings -> ', WASI.defaultBindings);
         const wasi = new WASI({
             preopenDirectories: {
                 '/': '/',
             },
             args,
-            env,
+            env: {
+                ...env,
+                CWD: '/',
+                $CWD: '/',
+                PWD: '/',
+                $PWD: '/',
+                PATH: '/',
+                $PATH: '/',
+                LS_COLORS: 1,
+            },
             bindings: {
                 ...WASI.defaultBindings,
                 fs: this.wasmFs.fs,

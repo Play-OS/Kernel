@@ -11,6 +11,7 @@ import createVirtualFs from './ProcessVirtualFs';
 import { WasmFs } from '@wasmer/wasmfs';
 import postWorkerMessage from './helpers/postWorkerMessage';
 import { DirectoryJSON } from 'memfs/lib/volume';
+import attachIoDevicesToFs from './ProcessIoDevices';
 
 export interface ProcessWorkerParams {
     binary: Uint8Array;
@@ -44,7 +45,12 @@ export class ProcessWorker extends EventEmitter {
 
     async spawn() {
         try {
+            if (!this.canvas) {
+                throw new Error('No canvas provided');
+            }
+
             this.fs = await createVirtualFs();
+            attachIoDevicesToFs(this.fs, this.canvas);
             const vm = new VirtualMachine(this.fs);
             const preparedBinary = await vm.prepareBin(this.binary);
             await vm.execute(preparedBinary, this.args, this.options);
@@ -63,13 +69,16 @@ export class ProcessWorker extends EventEmitter {
     }
 }
 
-export async function spawnProcessWorker(params: ProcessWorkerParams, provider: IKernelProvider): Promise<ProcessWorker> {
-    const processWorker = new ProcessWorker(params, provider);
+export async function spawnProcessWorker(params: ProcessWorkerParams, provider: IKernelProvider, canvas: OffscreenCanvas): Promise<ProcessWorker> {
+    const processWorker = new ProcessWorker({
+        ...params,
+        canvas,
+    }, provider);
     return Comlink.proxy(processWorker);
 }
 
 export interface ComlinkProcessWorkerMethods {
-    spawnProcessWorker: (params: ProcessWorkerParams, provider: IKernelProvider) => Promise<ProcessWorker>
+    spawnProcessWorker: (params: ProcessWorkerParams, provider: IKernelProvider, canvas: OffscreenCanvas) => Promise<ProcessWorker>
 }
 
 Comlink.expose({

@@ -5,8 +5,26 @@ import { callMethodOnFileSystemWorker } from './helpers/processMethodCalling';
 import { bufferToNumber } from '../../services/hexUtils';
 import createFsStats from '../../services/createFsStats';
 
+interface OpenFile {
+    fd: number;
+    path: string;
+    buffer?: Buffer;
+}
+
 const PROCESS_TARGET_NAME = 'process';
 const FS_TARGET_NAME = 'fileSystem';
+
+function isDeviceFolder(path: string): boolean {
+    const SKIP_FOLDERS = [
+        '/_wasmer',
+    ];
+
+    return !!SKIP_FOLDERS.find((folder) => path.startsWith(folder));
+}
+
+function getPathFromFd(fd: number, wasmFs: WasmFs) {
+    return wasmFs.volume.fds[fd].link.getPath();
+}
 
 export default async function createVirtualFs(): Promise<WasmFs> {
     const postFileWorkerMessage = createTargetedPostMessageInstance(PROCESS_TARGET_NAME, FS_TARGET_NAME);
@@ -44,11 +62,17 @@ export default async function createVirtualFs(): Promise<WasmFs> {
     //     };
     // });
 
+    const originalOpenSync = wasmFs.fs.openSync;
     wasmFs.fs.openSync = function overwrittenOpenSync(...args) {
         // // TODO: Remove me!
         // if (args[1] === undefined) {
         //     args[1] = 0;
         // }
+
+        if (isDeviceFolder(args[0].toString())) {
+            const fd = originalOpenSync(...args);
+            return fd;
+        }
 
         const result = callMethodOnFileSystemWorker('openSync', args, notifierBuffer);
         return bufferToNumber(result);
@@ -60,13 +84,25 @@ export default async function createVirtualFs(): Promise<WasmFs> {
         return createFsStats(JSON.parse(result.toString()));
     };
 
+    const originalFstatSync = wasmFs.fs.fstatSync;
     // @ts-ignore
     wasmFs.fs.fstatSync = function overwritteFStatSync(...args: any[]) {
+        if (isDeviceFolder(getPathFromFd(args[0], wasmFs))) {
+            // @ts-ignore
+            return originalFstatSync(...args);
+        }
+
         const result = callMethodOnFileSystemWorker('fstatSync', args, notifierBuffer);
         return createFsStats(JSON.parse(result.toString()));
     };
 
+    const originalRealPathSync = wasmFs.fs.realpathSync;
     wasmFs.fs.realpathSync = function overwriteRealPathSync(...args: any[]) {
+        if (isDeviceFolder(args[0])) {
+            // @ts-ignore
+            return originalRealPathSync(...args);
+        }
+
         const result = callMethodOnFileSystemWorker('realpathSync', args, notifierBuffer);
 
         if (!args[1] || (args[1] && args[1].encoding === 'utf8')) {
@@ -86,13 +122,25 @@ export default async function createVirtualFs(): Promise<WasmFs> {
         return result;
     };
 
+    const originalWriteSync = wasmFs.fs.writeSync;
     wasmFs.fs.writeSync = function overwrittenWriteSync(...args: any[]) {
+        if (isDeviceFolder(getPathFromFd(args[0], wasmFs))) {
+            // @ts-ignore
+            return originalWriteSync(...args);
+        }
+
         const result = callMethodOnFileSystemWorker('writeSync', args, notifierBuffer);
         return bufferToNumber(result);
     };
 
+    const originalCloseSync = wasmFs.fs.closeSync;
     wasmFs.fs.closeSync = function overwrittenCloseSync(...args: any[]) {
-        callMethodOnFileSystemWorker('closeSync', args, notifierBuffer);
+        if (isDeviceFolder(getPathFromFd(args[0], wasmFs))) {
+            // @ts-ignore
+            originalCloseSync(...args);
+        } else {
+            callMethodOnFileSystemWorker('closeSync', args, notifierBuffer);
+        }
     };
 
     wasmFs.fs.mkdirSync = function overwritteMkdirSync(...args: any[]) {
