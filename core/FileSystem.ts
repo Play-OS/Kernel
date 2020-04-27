@@ -142,7 +142,7 @@ class FileSystem extends EventEmitter {
         this.wasmFs.fs.writeFile = async (id: any, data: any, options: any, callback: any) => {
             // Resources are saved in location ids. This way virtual file systems can work aswell
             // console.debug('🗂 Calling writeFile', [id, data, options, callback]);
-            const locationId = await this.provider.storeFile(data, id);
+            const locationId = await this.provider.storeFile(data, `/${id}`);
 
             // Set the mapping correctly
             this.mapping[id] = Buffer.from(stringToBytes(locationId)).toJSON();

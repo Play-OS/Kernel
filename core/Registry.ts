@@ -8,6 +8,7 @@ class Registry {
     constructor(values: any = {}, provider: IKernelProvider) {
         this.registry = values;
         this.provider = provider;
+        console.log('New Registry!');
     }
 
     /**
@@ -35,11 +36,8 @@ class Registry {
      * @memberof Registry
      */
     async get<T>(key: string): Promise<T> {
-        if (this.registry[key]) {
-            return this.registry[key];
-        }
-
         const value: any = this.provider.storageGet(key);
+        this.registry[key] = value;
         return value;
     }
 }

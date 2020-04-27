@@ -1,13 +1,18 @@
 import postWorkerMessage from './postWorkerMessage';
 
+interface Methods {
+    name: string;
+    func: Function;
+}
+
 /* eslint-disable no-restricted-globals */
-export default function attachMethodsToMessages(selfTargetName: string, methods: Function[]) {
+export default function attachMethodsToMessages(selfTargetName: string, methods: Methods[]) {
     self.addEventListener('message', async (message: MessageEvent) => {
-        const methodName = message.data.type;
-        const foundMethod = methods.find((method) => (method.name === methodName || method.name === `bound ${methodName}`));
+        const methodName: string = message.data.type;
+        const foundMethod = methods.find((method) => (method.name === methodName));
 
         if (foundMethod) {
-            const result = await foundMethod(...message.data.args);
+            const result = await foundMethod.func(...message.data.args);
 
             postWorkerMessage({
                 id: message.data.id,

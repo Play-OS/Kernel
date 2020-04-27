@@ -49,10 +49,10 @@ export default class FileSystemWorker extends EventEmitter {
         // attachIoDevicesToFs(this.fs.wasmFs, this.canvas);
 
         attachMethodsToMessages(FS_TARGET_NAME, [
-            this.getFsMapping.bind(this),
-            this.writeMethodResultToBuffer.bind(this),
-            this.setNotifierBuffer.bind(this),
-            this.callMethodOnFs.bind(this),
+            { name: 'getFsMapping', func: this.getFsMapping.bind(this) },
+            { name: 'writeMethodResultToBuffer', func: this.writeMethodResultToBuffer.bind(this) },
+            { name: 'setNotifierBuffer', func: this.setNotifierBuffer.bind(this) },
+            { name: 'callMethodOnFs', func: this.callMethodOnFs.bind(this) },
         ]);
     }
 
