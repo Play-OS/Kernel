@@ -127,7 +127,7 @@ class FileSystem extends EventEmitter {
             const path = args[0];
 
             if (!isInSkipFolder(path)) {
-                const mapping = this.wasmFs.toJSON();
+                // const mapping = this.wasmFs.toJSON();
                 // mapping[path] =
             }
 
