@@ -3,9 +3,9 @@ import { EventEmitter } from 'events';
 
 import { ProcessEnvOptions } from 'child_process';
 // @ts-ignore
-import createProcessWorker from 'workerize-loader?name=kernel-process!./ProcessWorker'; // eslint-disable-line import/no-webpack-loader-syntax
+import createProcessWorker from 'workerize-loader?inline!./ProcessWorker'; // eslint-disable-line import/no-webpack-loader-syntax
 // @ts-ignore
-import createFileSystemWorker from 'workerize-loader?name=filesystem-process!./FileSystemWorker'; // eslint-disable-line import/no-webpack-loader-syntax
+import createFileSystemWorker from 'workerize-loader?inline!./FileSystemWorker'; // eslint-disable-line import/no-webpack-loader-syntax
 import { ComlinkFileSystemWorkerMethods } from './FileSystemWorker';
 
 import { ComlinkProcessWorkerMethods } from './ProcessWorker';
@@ -85,6 +85,7 @@ class Process extends EventEmitter {
                 }
             ]);
 
+            // @ts-ignore
             function onWindowMessage(message: MessageEvent) {
                 const { type } = message.data;
 

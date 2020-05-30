@@ -83,21 +83,21 @@ class WasmParser {
     }
 
     static async createDefaultApps(fs: FileSystem) {
-        console.log('Creating defualt apps');
-        await fs.makeDir('/Applications/Airhorner.wapp/', { recursive: true });
-        await fs.makeDir('/Applications/Terminal.wapp/');
-        await fs.makeDir('/Applications/Files.wapp/');
+        // console.log('Creating defualt apps');
+        // await fs.makeDir('/Applications/Airhorner.wapp/', { recursive: true });
+        // await fs.makeDir('/Applications/Terminal.wapp/');
+        // await fs.makeDir('/Applications/Files.wapp/');
 
-        const terminalPng = new Uint8Array(await (await fetch(TerminalIcon)).arrayBuffer());
-        const explorerPng = new Uint8Array(await (await fetch(ExplorerIcon)).arrayBuffer());
-        // const terminalPng = stringToBytes(atob(TerminalIcon.replace('data:image/png;base64,', '')));
-        // const explorerPng = stringToBytes(atob(ExplorerIcon.replace('data:image/png;base64,', '')));
+        // const terminalPng = new Uint8Array(await (await fetch(TerminalIcon)).arrayBuffer());
+        // const explorerPng = new Uint8Array(await (await fetch(ExplorerIcon)).arrayBuffer());
+        // // const terminalPng = stringToBytes(atob(TerminalIcon.replace('data:image/png;base64,', '')));
+        // // const explorerPng = stringToBytes(atob(ExplorerIcon.replace('data:image/png;base64,', '')));
 
-        await fs.writeFile('/Applications/Airhorner.wapp/manifest.json', JSON.stringify(AirhornerWappJson));
-        await fs.writeFile('/Applications/Files.wapp/manifest.json', JSON.stringify(ExplorerWappJson));
-        await fs.writeFile('/Applications/Terminal.wapp/manifest.json', JSON.stringify(TerminalWappJson));
-        await fs.writeFile('/Applications/Terminal.wapp/icon.png', terminalPng);
-        await fs.writeFile('/Applications/Files.wapp/icon.png', explorerPng);
+        // await fs.writeFile('/Applications/Airhorner.wapp/manifest.json', JSON.stringify(AirhornerWappJson));
+        // await fs.writeFile('/Applications/Files.wapp/manifest.json', JSON.stringify(ExplorerWappJson));
+        // await fs.writeFile('/Applications/Terminal.wapp/manifest.json', JSON.stringify(TerminalWappJson));
+        // await fs.writeFile('/Applications/Terminal.wapp/icon.png', terminalPng);
+        // await fs.writeFile('/Applications/Files.wapp/icon.png', explorerPng);
     }
 }
 

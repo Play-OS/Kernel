@@ -12,6 +12,7 @@ export default function createFsStats(statsRaw: any) {
 
     if (statsRaw) {
         Object.keys(statsRaw).forEach((key) => {
+            // @ts-ignore
             stats[key] = statsRaw[key];
         });
     } else {

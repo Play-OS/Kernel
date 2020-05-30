@@ -7,6 +7,7 @@ import VirtualMachine from './core/VirtualMachine';
 import Encryption from './core/Encryption';
 import WasmParser from './core/WasmParser';
 import Process from './core/process/Process';
+import Application from './models/Application';
 
 class Kernel {
     registry: Registry;

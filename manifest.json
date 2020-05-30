@@ -1,0 +1,17 @@
+{
+    "name": "PlayOS Kernel Test",
+    "short_name": "PlayOS",
+    "theme_color": "#3c3c3c",
+    "background_color": "#2196f3",
+    "display": "standalone",
+    "scope": "/",
+    "start_url": "/index.html",
+    "icons": [
+      {
+        "src": "res/img/icons/icon-72x72.png",
+        "sizes": "72x72",
+        "type": "image/png"
+      }
+    ],
+    "splash_pages": null
+  }

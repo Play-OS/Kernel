@@ -75,7 +75,8 @@ export default class FileSystemWorker extends EventEmitter {
     }
 
     async callMethodOnFs(methodName: string, ...args: any[]) {
-        const method = this.fs?.wasmFs.fs[methodName];
+        // @ts-ignore
+        const method: any = this.fs?.wasmFs.fs[methodName];
 
         if (!this.notifierBuffer) {
             throw new Error('Could not call methods without a notifier');

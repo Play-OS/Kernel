@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlayOS Kernel ⚡️</title>
+    <script src="build/index.js"></script>
+</head>
+<body>
+    <script>
+        async function run() {
+            PlayOS.config.setConfig({
+                manifestUri: 'https://airhorner.com/manifest.json',
+                authenticatorUri: 'http://localhost:3000/#/auth',
+            });
+
+            if (!PlayOS.auth.isUserLoggedIn()) {
+                PlayOS.auth.redirectToLogin();
+            }
+            // const kernel = await PlayOS.bootKernel('SEED', new PlayOS.providers.BrowserProvider);
+            // await kernel.fs.writeFile('/tralalalala', 'test');
+        }
+
+        run();
+    </script>
+</body>
+</html>

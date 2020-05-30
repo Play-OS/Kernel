@@ -406,7 +406,7 @@ class FileSystem extends EventEmitter {
      * @memberof FileSystem
      */
     toJSON() {
-        const result = {};
+        const result: any = {};
 
         Object.keys(this.mapping).forEach((mappingKey) => {
             result[mappingKey] = Buffer.from(mappingKey);

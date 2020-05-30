@@ -1,28 +1,20 @@
-import Kernel, { bootKernel } from './Kernel';
+import { bootKernel } from './Kernel';
 import BrowserProvider from './provider/BrowserProvider';
 import RutileProvider from './provider/RutileProvider';
-import DesktopProvider from './provider/DesktopProvider';
 import SyncProvider from './provider/SyncProvider';
-import FileSystem from './core/FileSystem';
-// import { ParsedApplicationInfo } from './core/WasmParser';
-// import type { IKernelProvider } from './interfaces/IKernelProvider';
-// import Application from './models/Application';
+import MessageProvider from './provider/MessageProvider';
+import * as auth from './core/Authentication';
+import * as config from './core/Configuration';
 
-// interface ParsedApplicationInfo {
-//     manifest: Application;
-//     icon: Blob;
-//     binary?: Uint8Array;
-//     location: string;
-// }
-
-export default Kernel;
-
-export {
-    BrowserProvider,
-    RutileProvider,
-    DesktopProvider,
-    SyncProvider,
-    // ParsedApplicationInfo,
-    FileSystem,
+// @ts-ignore
+window.PlayOS = {
+    auth,
+    config,
     bootKernel,
+    providers: {
+        BrowserProvider,
+        RutileProvider,
+        SyncProvider,
+        MessageProvider,
+    }
 };
