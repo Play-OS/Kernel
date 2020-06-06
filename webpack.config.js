@@ -1,3 +1,4 @@
+const DeclarationBundlerPlugin = require('@jmurp7385/declaration-bundler-webpack-plugin');
 const path = require('path');
 const exclude = '/node_modules';
 
@@ -8,8 +9,9 @@ module.exports = {
         extensions: ['.js', '.jsx', '.tsx', '.ts']
     },
     entry: {
-        index: ['./index.ts'],
-        // vm: ['./src/js/core/rvm/vmWorker.ts'],
+        kernel: ['./src/index.ts'],
+        'process.worker': ['./src/process.worker.ts'],
+        'filesystem.worker': ['./src/filesystem.worker.ts'],
     },
     output: {
         path: path.resolve(__dirname, './build/'),
@@ -49,4 +51,10 @@ module.exports = {
             },
         ],
     },
+    plugins: [
+        new DeclarationBundlerPlugin({
+            moduleName:'@playos/kernel',
+            out:'./index.d.ts',
+        })
+    ]
 };

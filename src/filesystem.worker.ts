@@ -1,15 +1,15 @@
 import * as Comlink from 'comlink';
 import { EventEmitter } from 'events';
-import FileSystem from '../FileSystem';
-import Registry from '../Registry';
-import IKernelProvider from '../../interfaces/IKernelProvider';
-import { bytesToString } from '../../services/stringToBytes';
-import attachMethodsToMessages from './helpers/attachMethodsToMessages';
-import { createTargetedPostMessageInstance } from './helpers/postWorkerMessage';
-import { postMethodResultLengthToProcess } from './helpers/processMethodCalling';
-import convertToBuffer from '../../services/convertToBuffer';
-import { storeAndNotify } from '../../services/sharedBufferUtils';
-import attachIoDevicesToFs from './ProcessIoDevices';
+import FileSystem from './core/FileSystem';
+import Registry from './core/Registry';
+import IKernelProvider from './interfaces/IKernelProvider';
+import { bytesToString } from './services/stringToBytes';
+import attachMethodsToMessages from './core/process/helpers/attachMethodsToMessages';
+import { createTargetedPostMessageInstance } from './core/process/helpers/postWorkerMessage';
+import { postMethodResultLengthToProcess } from './core/process/helpers/processMethodCalling';
+import convertToBuffer from './services/convertToBuffer';
+import { storeAndNotify } from './services/sharedBufferUtils';
+import attachIoDevicesToFs from './core/process/ProcessIoDevices';
 
 export enum FileSystemWorkerTypes {
     Init = 'FSW:Init',

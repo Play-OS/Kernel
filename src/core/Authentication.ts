@@ -1,6 +1,6 @@
 import { appConfig } from './Configuration';
 import { AuthenticationRequest } from '../models/Authentication';
-import packageJson from '../package.json';
+import packageJson from '../../package.json';
 
 function isUserLoggedIn(): boolean {
     return false;

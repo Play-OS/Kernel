@@ -2,15 +2,16 @@ import * as Comlink from 'comlink';
 import { EventEmitter } from 'events';
 
 import { ProcessEnvOptions } from 'child_process';
-// @ts-ignore
-import createProcessWorker from 'workerize-loader?inline!./ProcessWorker'; // eslint-disable-line import/no-webpack-loader-syntax
-// @ts-ignore
-import createFileSystemWorker from 'workerize-loader?inline!./FileSystemWorker'; // eslint-disable-line import/no-webpack-loader-syntax
-import { ComlinkFileSystemWorkerMethods } from './FileSystemWorker';
-
-import { ComlinkProcessWorkerMethods } from './ProcessWorker';
+// // @ts-ignore
+// import createProcessWorker from 'workerize-loader?inline!./ProcessWorker'; // eslint-disable-line import/no-webpack-loader-syntax
+// // @ts-ignore
+// import createFileSystemWorker from 'workerize-loader?inline!./FileSystemWorker'; // eslint-disable-line import/no-webpack-loader-syntax
+import { ComlinkFileSystemWorkerMethods } from '../../filesystem.worker';
+import { ComlinkProcessWorkerMethods } from '../../process.worker';
 import IKernelProvider from '../../interfaces/IKernelProvider';
 import redirectWorkerMessages from './helpers/redirectWorkerMessages';
+import { appConfig } from '../Configuration';
+import { createWorker } from '../../services/workerUtils';
 
 class Process extends EventEmitter {
     args: string[];
@@ -42,8 +43,8 @@ class Process extends EventEmitter {
 
     async spawn(): Promise<void> {
         try {
-            const createdProcessWorker: Worker = createProcessWorker();
-            const createdFileSystemWorker: Worker = createFileSystemWorker();
+            const createdProcessWorker = createWorker(appConfig.processWorkerUrl);
+            const createdFileSystemWorker: Worker = createWorker(appConfig.fsWorkerUrl);
             const processWorker = Comlink.wrap<ComlinkProcessWorkerMethods>(createdProcessWorker);
             const fileSystemWorker = Comlink.wrap<ComlinkFileSystemWorkerMethods>(createdFileSystemWorker);
 

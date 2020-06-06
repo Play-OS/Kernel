@@ -1,17 +1,17 @@
 import * as Comlink from 'comlink';
 import { ProcessEnvOptions } from 'child_process';
-import FileSystem from '../FileSystem';
-import IKernelProvider from '../../interfaces/IKernelProvider';
-import Registry from '../Registry';
-import VirtualMachine from '../VirtualMachine';
+import FileSystem from './core/FileSystem';
+import IKernelProvider from './interfaces/IKernelProvider';
+import Registry from './core/Registry';
+import VirtualMachine from './core/VirtualMachine';
 import { EventEmitter } from 'events';
-import { bytesToString } from '../../services/stringToBytes';
-import FileSystemWorker from './FileSystemWorker';
-import createVirtualFs from './ProcessVirtualFs';
+import { bytesToString } from './services/stringToBytes';
+import FileSystemWorker from './filesystem.worker';
+import createVirtualFs from './core/process/ProcessVirtualFs';
 import { WasmFs } from '@wasmer/wasmfs';
-import postWorkerMessage from './helpers/postWorkerMessage';
+import postWorkerMessage from './core/process/helpers/postWorkerMessage';
 import { DirectoryJSON } from 'memfs/lib/volume';
-import attachIoDevicesToFs from './ProcessIoDevices';
+import attachIoDevicesToFs from './core/process/ProcessIoDevices';
 
 export interface ProcessWorkerParams {
     binary: Uint8Array;

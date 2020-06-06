@@ -1,6 +1,6 @@
 import { WASI } from '@wasmer/wasi';
 // @ts-ignore
-import { lowerI64Imports } from "@wasmer/wasm-transformer";
+// import { lowerI64Imports } from "@wasmer/wasm-transformer";
 import { WasmFs } from '@wasmer/wasmfs';
 
 class VirtualMachine {
@@ -19,9 +19,9 @@ class VirtualMachine {
      * @memberof VirtualMachine
      */
     async prepareBin(bin: Uint8Array): Promise<Uint8Array> {
-        const loweredBinary = await lowerI64Imports(bin);
+        // const loweredBinary = await lowerI64Imports(bin);
 
-        return loweredBinary;
+        return bin;
     }
 
     async execute(bin: Uint8Array, args: string[] = [], env: any = {}): Promise<void> {

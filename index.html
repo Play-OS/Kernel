@@ -9,16 +9,16 @@
 <body>
     <script>
         async function run() {
-            PlayOS.config.setConfig({
-                manifestUri: 'https://airhorner.com/manifest.json',
-                authenticatorUri: 'http://localhost:3000/#/auth',
-            });
+            // PlayOS.config.setConfig({
+            //     manifestUri: 'https://airhorner.com/manifest.json',
+            //     authenticatorUri: 'http://localhost:3000/#/auth',
+            // });
 
-            if (!PlayOS.auth.isUserLoggedIn()) {
-                PlayOS.auth.redirectToLogin();
-            }
-            // const kernel = await PlayOS.bootKernel('SEED', new PlayOS.providers.BrowserProvider);
-            // await kernel.fs.writeFile('/tralalalala', 'test');
+            // if (!PlayOS.auth.isUserLoggedIn()) {
+            //     PlayOS.auth.redirectToLogin();
+            // }
+            const kernel = await PlayOS.bootKernel('SEED', new PlayOS.providers.BrowserProvider);
+            await kernel.fs.writeFile('/tralalalala', 'test');
         }
 
         run();

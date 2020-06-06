@@ -7,6 +7,8 @@ export interface Configuration {
     manifestUri: string;
     authenticatorUri: string;
     coreNode: string;
+    processWorkerUrl: string;
+    fsWorkerUrl: string;
 }
 
 interface ConfigProps extends Partial<Configuration> {};
@@ -18,6 +20,8 @@ let appConfig: Configuration = {
     scopes: [],
     authenticatorUri: 'https://os.playos.io/#/auth',
     coreNode: 'https//core.playos.io/',
+    processWorkerUrl: './build/process.worker.js',
+    fsWorkerUrl: './build/fs.worker.js',
 };
 
 function setConfig(config: ConfigProps): void {

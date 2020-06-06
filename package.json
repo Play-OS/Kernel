@@ -2,14 +2,16 @@
     "name": "@playos/kernel",
     "version": "1.0.0",
     "description": "Kernel for PlayOS",
+    "main": "build/kernel.js",
     "scripts": {
-        "build": "cross-env NODE_ENV=production webpack",
-        "start": "cross-env NODE_ENV=development webpack-dev-server --config ./webpack.config.js --open true --port 1337 --inline",
-        "test": ""
+        "build": "cross-env NODE_ENV=development webpack",
+        "start": "cross-env NODE_ENV=development webpack-dev-server --config ./webpack.config.js --open true --port 1234 --inline",
+        "test": "jest"
     },
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "@jmurp7385/declaration-bundler-webpack-plugin": "^1.0.1",
         "@wasmer/io-devices": "^0.6.0",
         "@wasmer/wasi": "^0.6.0",
         "@wasmer/wasm-transformer": "^0.6.0",
@@ -17,14 +19,17 @@
         "asyncify-wasm": "^1.0.0",
         "comlink": "^4.2.0",
         "ethers": "^4.0.43",
+        "jest": "^26.0.1",
         "keccak": "^2.1.0",
-        "memfs": "^3.0.4"
+        "memfs": "^3.0.4",
+        "ts-jest": "^26.1.0"
     },
     "devDependencies": {
         "@babel/core": "^7.8.3",
         "@babel/plugin-proposal-class-properties": "^7.8.3",
         "@babel/plugin-proposal-object-rest-spread": "^7.8.3",
         "@babel/preset-env": "^7.8.3",
+        "@types/jest": "^25.2.3",
         "@types/node": "^13.1.8",
         "babel-loader": "^8.0.6",
         "cross-env": "^6.0.3",
