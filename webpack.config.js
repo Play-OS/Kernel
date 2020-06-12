@@ -8,6 +8,9 @@ module.exports = {
     resolve: {
         extensions: ['.js', '.jsx', '.tsx', '.ts']
     },
+    optimization: {
+        minimize: false,
+    },
     entry: {
         kernel: ['./src/index.ts'],
         'process.worker': ['./src/process.worker.ts'],
@@ -15,7 +18,7 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, './build/'),
-        libraryTarget: 'umd',
+        libraryTarget: 'this',
         filename: '[name].js',
         publicPath: '/build/',
     },
@@ -54,7 +57,7 @@ module.exports = {
     plugins: [
         new DeclarationBundlerPlugin({
             moduleName:'@playos/kernel',
-            out:'./index.d.ts',
+            out:'./kernel.d.ts',
         })
     ]
 };

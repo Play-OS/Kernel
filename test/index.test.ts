@@ -4,8 +4,10 @@ import { TestProvider, fileStorage, keyStorage } from './TestProvider';
 
 
 describe('index', () => {
-    it('should be able to boot', async () => {
-        // @ts-ignore
-        await PlayOS.bootKernel('TEST_SEED', TestProvider);
+    it('should be able to boot', async (done) => {
+        const kernel = await PlayOS.bootKernel('TEST_SEED', TestProvider);
+
+        expect(kernel).toBeDefined();
+        done();
     });
 });

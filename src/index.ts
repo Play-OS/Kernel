@@ -1,3 +1,4 @@
+import './polyfill';
 import { bootKernel } from './Kernel';
 import BrowserProvider from './provider/BrowserProvider';
 import RutileProvider from './provider/RutileProvider';

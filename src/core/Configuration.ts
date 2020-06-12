@@ -1,4 +1,5 @@
 import { Permission } from "../models/Permissions";
+import isNodeJs from "../services/isNodeJs";
 
 export interface Configuration {
     scopes: Permission[];
@@ -14,14 +15,14 @@ export interface Configuration {
 interface ConfigProps extends Partial<Configuration> {};
 
 let appConfig: Configuration = {
-    appDomain: window.location.origin,
+    appDomain: isNodeJs() ? '' : window.location.origin,
     manifestUri: '/manifest.json',
-    redirectUri: window.location.origin,
+    redirectUri: isNodeJs() ? '' : window.location.origin,
     scopes: [],
     authenticatorUri: 'https://os.playos.io/#/auth',
     coreNode: 'https//core.playos.io/',
     processWorkerUrl: './build/process.worker.js',
-    fsWorkerUrl: './build/fs.worker.js',
+    fsWorkerUrl: './build/filesystem.worker.js',
 };
 
 function setConfig(config: ConfigProps): void {

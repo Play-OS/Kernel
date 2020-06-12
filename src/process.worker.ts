@@ -12,12 +12,12 @@ import { WasmFs } from '@wasmer/wasmfs';
 import postWorkerMessage from './core/process/helpers/postWorkerMessage';
 import { DirectoryJSON } from 'memfs/lib/volume';
 import attachIoDevicesToFs from './core/process/ProcessIoDevices';
+import { exposeWithComlink } from './services/workerUtils';
 
 export interface ProcessWorkerParams {
     binary: Uint8Array;
     args: string[];
     options?: ProcessEnvOptions;
-    canvas?: OffscreenCanvas;
 }
 
 export class ProcessWorker extends EventEmitter {
@@ -27,11 +27,9 @@ export class ProcessWorker extends EventEmitter {
 
     options?: ProcessEnvOptions;
 
-    canvas?: OffscreenCanvas;
-
     provider: IKernelProvider;
 
-    fs?: WasmFs;
+    fs?: FileSystem;
 
     constructor(params: ProcessWorkerParams, provider: IKernelProvider) {
         super();
@@ -39,19 +37,15 @@ export class ProcessWorker extends EventEmitter {
         this.binary = params.binary;
         this.args = params.args;
         this.options = params.options;
-        this.canvas = params.canvas;
         this.provider = provider;
     }
 
     async spawn() {
         try {
-            if (!this.canvas) {
-                throw new Error('No canvas provided');
-            }
+            this.fs = await FileSystem.create(new Registry({}, this.provider), this.provider);
+            this.fs.on('message', (message: Uint8Array) => this.emit('message', bytesToString(message)));
 
-            this.fs = await createVirtualFs();
-            attachIoDevicesToFs(this.fs, this.canvas);
-            const vm = new VirtualMachine(this.fs);
+            const vm = new VirtualMachine(this.fs.wasmFs);
             const preparedBinary = await vm.prepareBin(this.binary);
             await vm.execute(preparedBinary, this.args, this.options);
 
@@ -63,24 +57,23 @@ export class ProcessWorker extends EventEmitter {
             }
 
             console.error('[Process exited]', error);
-            console.error('[Process exited]', await this.fs?.getStdOut());
+            console.error('[Process exited]', await this.fs?.wasmFs.getStdOut());
             this.emit('exit', 1);
         }
     }
 }
 
-export async function spawnProcessWorker(params: ProcessWorkerParams, provider: IKernelProvider, canvas: OffscreenCanvas): Promise<ProcessWorker> {
+export async function spawnProcessWorker(params: ProcessWorkerParams, provider: IKernelProvider): Promise<ProcessWorker> {
     const processWorker = new ProcessWorker({
         ...params,
-        canvas,
     }, provider);
     return Comlink.proxy(processWorker);
 }
 
 export interface ComlinkProcessWorkerMethods {
-    spawnProcessWorker: (params: ProcessWorkerParams, provider: IKernelProvider, canvas: OffscreenCanvas) => Promise<ProcessWorker>
+    spawnProcessWorker: (params: ProcessWorkerParams, provider: IKernelProvider) => Promise<ProcessWorker>
 }
 
-Comlink.expose({
+exposeWithComlink({
     spawnProcessWorker,
 });

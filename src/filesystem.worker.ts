@@ -10,6 +10,7 @@ import { postMethodResultLengthToProcess } from './core/process/helpers/processM
 import convertToBuffer from './services/convertToBuffer';
 import { storeAndNotify } from './services/sharedBufferUtils';
 import attachIoDevicesToFs from './core/process/ProcessIoDevices';
+import { exposeWithComlink } from './services/workerUtils';
 
 export enum FileSystemWorkerTypes {
     Init = 'FSW:Init',
@@ -115,6 +116,6 @@ export interface ComlinkFileSystemWorkerMethods {
     spawnFileSystem: (params: any, provider: IKernelProvider) => Promise<FileSystemWorker>
 }
 
-Comlink.expose({
+exposeWithComlink({
     spawnFileSystem,
 });

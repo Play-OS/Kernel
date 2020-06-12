@@ -1,12 +1,42 @@
+import * as Comlink from 'comlink';
 import isNodeJs from './isNodeJs';
-
-
+import nodeEndpoint from './comlinkNodeEndpoint';
 
 export interface RequestMessage {
     type: string,
     value: any,
     id?: string,
     bufferIndex?: number;
+}
+
+export function proxyWithComlink(obj: any): Comlink.ProxyMarked {
+    if (isNodeJs()) {
+        // @ts-ignore
+        return Comlink.proxy<T>(nodeEndpoint(obj));
+    }
+
+    return Comlink.proxy(obj);
+}
+
+export function wrapWithComlink<T>(worker: Worker): Comlink.Remote<T> {
+    if (isNodeJs()) {
+        // @ts-ignore
+        return Comlink.wrap<T>(nodeEndpoint(worker));
+    }
+
+    return Comlink.wrap<T>(worker);
+}
+
+export function exposeWithComlink(obj: any): void {
+    if (isNodeJs()) {
+        // @ts-ignore
+        const workerThreads =  __non_webpack_require__('worker_threads');
+        const { parentPort } =  workerThreads;
+        console.log('Via node');
+        return Comlink.expose(obj, nodeEndpoint(parentPort));
+    }
+
+    return Comlink.expose(obj);
 }
 
 export function createWorker(stringUrl: string, options?: any): Worker {
@@ -60,7 +90,12 @@ export function workerAddEventListener(eventType: string, callback: (event: any)
 }
 
 export function addEventListenerOnWorker(worker: Worker, evenType: string, callback: (event: any) => void) {
-    worker.addEventListener(evenType, callback);
+    if (isNodeJs()) {
+        // @ts-ignore
+        worker.on(evenType, callback);
+    } else {
+        worker.addEventListener(evenType, callback);
+    }
 }
 
 export function postMessageOnWorker(worker: Worker, message: RequestMessage) {

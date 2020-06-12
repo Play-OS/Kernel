@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PlayOS Kernel ⚡️</title>
-    <script src="build/index.js"></script>
+    <script src="build/kernel.js"></script>
 </head>
 <body>
     <script>
@@ -19,6 +19,24 @@
             // }
             const kernel = await PlayOS.bootKernel('SEED', new PlayOS.providers.BrowserProvider);
             await kernel.fs.writeFile('/tralalalala', 'test');
+
+            const response = await fetch('http://localhost:4000/cowsay.wasm');
+            const bin = await response.arrayBuffer();
+
+            const process = await kernel.createProcess(new Uint8Array(bin), ['cowthink', 'hello world'], {});
+
+            let msgTotal = '';
+
+            process.on('message', (msg) => {
+                msgTotal += msg;
+                console.log(msg);
+            });
+
+            process.on('exit', (code) => {
+                console.log('Exited process with code', code, msgTotal);
+            })
+
+            process.spawn();
         }
 
         run();

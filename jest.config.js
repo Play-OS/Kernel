@@ -2,7 +2,7 @@ const { jsWithTs: tsjPreset } = require('ts-jest/presets');
 
 module.exports = {
     preset: 'ts-jest',
-    testEnvironment: 'jsdom',
+    testEnvironment: 'node',
     transform: {
         ...tsjPreset.transform,
     },

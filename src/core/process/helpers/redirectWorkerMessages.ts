@@ -1,3 +1,5 @@
+import { addEventListenerOnWorker } from "../../../services/workerUtils";
+
 interface WorkerWithTarget {
     worker: Worker;
     targetName: string;
@@ -28,6 +30,6 @@ export default function redirectWorkerMessages(workers: WorkerWithTarget[]) {
     }
 
     workers.forEach((workerWithTarget) => {
-        workerWithTarget.worker.addEventListener('message', onMessage);
+        addEventListenerOnWorker(workerWithTarget.worker, 'message', onMessage);
     });
 }

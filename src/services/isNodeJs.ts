@@ -1,5 +1,9 @@
 export default function isNodeJs(): boolean {
-    if (typeof window === 'undefined' && typeof process !== 'undefined' && typeof process.release !== 'undefined' && process.release.name === 'node') {
+    if (typeof global.require === 'undefined') {
+        return false;
+    }
+
+    if (typeof window === 'undefined') {
         return true;
     }
 
