@@ -7,4 +7,3 @@ if (isNodeJs()) {
 
     global.performance = performance;
 }
-

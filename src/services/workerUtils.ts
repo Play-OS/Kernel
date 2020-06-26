@@ -1,13 +1,7 @@
 import * as Comlink from 'comlink';
 import isNodeJs from './isNodeJs';
 import nodeEndpoint from './comlinkNodeEndpoint';
-
-export interface RequestMessage {
-    type: string,
-    value: any,
-    id?: string,
-    bufferIndex?: number;
-}
+import { MessageType, RequestMessage } from '../models/WorkerMessage';
 
 export function proxyWithComlink(obj: any): Comlink.ProxyMarked {
     if (isNodeJs()) {
@@ -53,18 +47,24 @@ export function createWorker(stringUrl: string, options?: any): Worker {
     return new WorkerConstructor(stringUrl, options);
 }
 
-export function workerPostMessage(message: RequestMessage) {
-    // @ts-ignore
-    self.postMessage(message);
+export function workerPostMessage<T>(message: RequestMessage<T>) {
+    if (isNodeJs()) {
+        // @ts-ignore
+        const workerThreads = __non_webpack_require__('worker_threads');
+        workerThreads.parentPort.postMessage(message);
+    } else {
+        // @ts-ignore
+        self.postMessage(message);
+    }
 }
 
-export function workerRequest(message: RequestMessage, listenForChanges: boolean = true): Promise<RequestMessage | null> {
+export function workerRequest<T, R>(message: RequestMessage<T>, listenForChanges: boolean = true): Promise<RequestMessage<R> | null> {
     return new Promise((resolve) => {
         message.id = Math.random().toString();
 
         if (listenForChanges) {
             const listener = (event: any) => {
-                const receivedMessage = extractMessageFromEvent(event);
+                const receivedMessage = extractMessageFromEvent<R>(event);
 
                 if (receivedMessage.id === message.id) {
                     workerRemoveEventListener('message', listener);
@@ -81,12 +81,24 @@ export function workerRequest(message: RequestMessage, listenForChanges: boolean
     });
 }
 
-export function workerRemoveEventListener(eventType: string, callback: (event: any) => void) {
-    self.removeEventListener(eventType, callback);
+export function workerAddEventListener(eventType: string, callback: (event: any) => void) {
+    if (isNodeJs()) {
+        // @ts-ignore
+        const workerThreads =  __non_webpack_require__('worker_threads');
+        workerThreads.parentPort.on(eventType, callback);
+    } else {
+        self.addEventListener(eventType, callback);
+    }
 }
 
-export function workerAddEventListener(eventType: string, callback: (event: any) => void) {
-    self.addEventListener(eventType, callback);
+export function workerRemoveEventListener(eventType: string, callback: (event: any) => void) {
+    if (isNodeJs()) {
+        // @ts-ignore
+        const workerThreads =  __non_webpack_require__('worker_threads');
+        workerThreads.parentPort.off(eventType, callback);
+    } else {
+        self.removeEventListener(eventType, callback);
+    }
 }
 
 export function addEventListenerOnWorker(worker: Worker, evenType: string, callback: (event: any) => void) {
@@ -98,10 +110,19 @@ export function addEventListenerOnWorker(worker: Worker, evenType: string, callb
     }
 }
 
-export function postMessageOnWorker(worker: Worker, message: RequestMessage) {
+export function postMessageOnWorker<T>(worker: Worker, message: RequestMessage<T>) {
     worker.postMessage(message);
 }
 
-export function extractMessageFromEvent(event: any): RequestMessage {
-    return event.data;
+export function extractMessageFromEvent<T>(event: any): RequestMessage<T> {
+    try {
+        if (isNodeJs()) {
+            return event;
+        }
+
+        return event.data;
+    } catch (error) {
+        return event;
+    }
 }
+

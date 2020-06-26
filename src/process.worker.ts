@@ -1,18 +1,14 @@
 import * as Comlink from 'comlink';
-import { ProcessEnvOptions } from 'child_process';
+import { ProcessEnvOptions, spawn } from 'child_process';
 import FileSystem from './core/FileSystem';
 import IKernelProvider from './interfaces/IKernelProvider';
 import Registry from './core/Registry';
 import VirtualMachine from './core/VirtualMachine';
 import { EventEmitter } from 'events';
 import { bytesToString } from './services/stringToBytes';
-import FileSystemWorker from './filesystem.worker';
-import createVirtualFs from './core/process/ProcessVirtualFs';
-import { WasmFs } from '@wasmer/wasmfs';
-import postWorkerMessage from './core/process/helpers/postWorkerMessage';
-import { DirectoryJSON } from 'memfs/lib/volume';
-import attachIoDevicesToFs from './core/process/ProcessIoDevices';
-import { exposeWithComlink } from './services/workerUtils';
+import { workerAddEventListener, workerPostMessage, extractMessageFromEvent } from './services/workerUtils';
+import { RequestMessage, MessageType } from './models/WorkerMessage';
+import WorkerMessageProvider from './provider/WorkerMessageProvider';
 
 export interface ProcessWorkerParams {
     binary: Uint8Array;
@@ -31,13 +27,13 @@ export class ProcessWorker extends EventEmitter {
 
     fs?: FileSystem;
 
-    constructor(params: ProcessWorkerParams, provider: IKernelProvider) {
+    constructor(params: ProcessWorkerParams) {
         super();
 
         this.binary = params.binary;
         this.args = params.args;
         this.options = params.options;
-        this.provider = provider;
+        this.provider = new WorkerMessageProvider();
     }
 
     async spawn() {
@@ -47,6 +43,7 @@ export class ProcessWorker extends EventEmitter {
 
             const vm = new VirtualMachine(this.fs.wasmFs);
             const preparedBinary = await vm.prepareBin(this.binary);
+
             await vm.execute(preparedBinary, this.args, this.options);
 
             this.emit('exit', 0);
@@ -63,17 +60,28 @@ export class ProcessWorker extends EventEmitter {
     }
 }
 
-export async function spawnProcessWorker(params: ProcessWorkerParams, provider: IKernelProvider): Promise<ProcessWorker> {
-    const processWorker = new ProcessWorker({
-        ...params,
-    }, provider);
-    return Comlink.proxy(processWorker);
-}
+workerAddEventListener('message', (event: MessageEvent) => {
+    const data = extractMessageFromEvent<ProcessWorkerParams>(event);
 
-export interface ComlinkProcessWorkerMethods {
-    spawnProcessWorker: (params: ProcessWorkerParams, provider: IKernelProvider) => Promise<ProcessWorker>
-}
+    if (data.type !== MessageType.Spawn) {
+        return;
+    }
 
-exposeWithComlink({
-    spawnProcessWorker,
+    const processWorker = new ProcessWorker(data.value);
+
+    processWorker.on('message', (message) => {
+        workerPostMessage({
+            type: MessageType.Message,
+            value: message,
+        });
+    });
+
+    processWorker.on('exit', (code: number) => {
+        workerPostMessage({
+            type: MessageType.Exit,
+            value: code,
+        });
+    });
+
+    processWorker.spawn();
 });

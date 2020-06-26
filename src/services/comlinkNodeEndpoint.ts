@@ -16,7 +16,6 @@ export interface NodeEndpoint {
 }
 
 export default function nodeEndpoint(nep: NodeEndpoint): Endpoint {
-    console.log('[] nep -> ', nep);
     const listeners = new WeakMap();
     return {
         postMessage: nep.postMessage.bind(nep),

@@ -1,7 +1,10 @@
-import { WASI } from '@wasmer/wasi';
+import { WASI } from '@wasmer/wasi/lib/index';
+import wasiBrowserBindings from '../services/wasiBrowserBindings';
 // @ts-ignore
 // import { lowerI64Imports } from "@wasmer/wasm-transformer";
 import { WasmFs } from '@wasmer/wasmfs';
+import isNodeJs from '../services/isNodeJs';
+import createWasiBindings from '../services/wasiBrowserBindings';
 
 class VirtualMachine {
     private wasmFs: WasmFs;
@@ -41,7 +44,7 @@ class VirtualMachine {
                 LS_COLORS: 1,
             },
             bindings: {
-                ...WASI.defaultBindings,
+                ...createWasiBindings(),
                 fs: this.wasmFs.fs,
             }
         });

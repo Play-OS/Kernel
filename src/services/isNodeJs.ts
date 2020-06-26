@@ -1,11 +1,8 @@
 export default function isNodeJs(): boolean {
-    if (typeof global.require === 'undefined') {
+    // @ts-ignore
+    if (typeof __non_webpack_require__ === 'undefined') {
         return false;
-    }
-
-    if (typeof window === 'undefined') {
+    } else {
         return true;
     }
-
-    return false;
 }

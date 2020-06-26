@@ -1,17 +1,12 @@
-import * as Comlink from 'comlink';
 import { EventEmitter } from 'events';
 
 import { ProcessEnvOptions } from 'child_process';
-// // @ts-ignore
-// import createProcessWorker from 'workerize-loader?inline!./ProcessWorker'; // eslint-disable-line import/no-webpack-loader-syntax
-// // @ts-ignore
-// import createFileSystemWorker from 'workerize-loader?inline!./FileSystemWorker'; // eslint-disable-line import/no-webpack-loader-syntax
-import { ComlinkFileSystemWorkerMethods } from '../../filesystem.worker';
-import { ComlinkProcessWorkerMethods } from '../../process.worker';
 import IKernelProvider from '../../interfaces/IKernelProvider';
-import redirectWorkerMessages from './helpers/redirectWorkerMessages';
 import { appConfig } from '../Configuration';
-import { createWorker, wrapWithComlink } from '../../services/workerUtils';
+import { createWorker, addEventListenerOnWorker, postMessageOnWorker, extractMessageFromEvent } from '../../services/workerUtils';
+import { MessageType, RequestMessage } from '../../models/WorkerMessage';
+import { ProcessWorkerParams } from '../../process.worker';
+import processProviderMessageHandler from './helpers/processProviderMessageHandler';
 
 class Process extends EventEmitter {
     args: string[];
@@ -22,6 +17,7 @@ class Process extends EventEmitter {
 
     private notifierBuffer?: SharedArrayBuffer;
     private valuesBuffer?: SharedArrayBuffer;
+    private processWorker?: Worker;
 
     /**
      * Creates an instance of Process.
@@ -41,27 +37,32 @@ class Process extends EventEmitter {
         this.provider = provider;
     }
 
+    private handleWorkerMessage(event: MessageEvent) {
+        const data: RequestMessage<any> = extractMessageFromEvent<any>(event);
+
+        if (data.type === MessageType.Provider) {
+            processProviderMessageHandler(data, this.provider, this.processWorker!);
+        } else if (data.type === MessageType.Message) {
+            this.emit('message', data.value);
+        } else if (data.type === MessageType.Exit) {
+            this.emit('exit', data.value);
+            this.processWorker?.terminate();
+        }
+    }
+
     async spawn(): Promise<void> {
         try {
-            const createdProcessWorker = createWorker(appConfig.processWorkerUrl);
-            const processWorker = wrapWithComlink<ComlinkProcessWorkerMethods>(createdProcessWorker);
+            this.processWorker = createWorker(appConfig.processWorkerUrl);
 
-            const spawnedProcessWorker = await processWorker.spawnProcessWorker({
-                args: this.args,
-                binary: this.bin,
-                options: this.options,
-            }, Comlink.proxy(this.provider));
-
-            spawnedProcessWorker.on('exit', Comlink.proxy((code: number) => {
-                this.emit('exit', code);
-                createdProcessWorker.terminate();
-            }));
-
-            spawnedProcessWorker.on('message', Comlink.proxy((message: string) => {
-                this.emit('message', message);
-            }));
-
-            await spawnedProcessWorker.spawn();
+            addEventListenerOnWorker(this.processWorker, 'message', this.handleWorkerMessage.bind(this));
+            postMessageOnWorker<ProcessWorkerParams>(this.processWorker, {
+                type: MessageType.Spawn,
+                value: {
+                    args: this.args,
+                    binary: this.bin,
+                    options: this.options,
+                },
+            });
         } catch (error) {
             console.error('[Process.spawn]', error);
         }
