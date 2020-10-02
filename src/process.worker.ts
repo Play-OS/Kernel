@@ -1,3 +1,4 @@
+import './polyfill';
 import * as Comlink from 'comlink';
 import { ProcessEnvOptions, spawn } from 'child_process';
 import FileSystem from './core/FileSystem';
@@ -48,7 +49,7 @@ export class ProcessWorker extends EventEmitter {
 
             this.emit('exit', 0);
         } catch (error) {
-            if (error.code === 0) {
+            if (error?.code === 0) {
                 this.emit('exit', 0);
                 return;
             }
@@ -69,6 +70,7 @@ workerAddEventListener('message', (event: MessageEvent) => {
 
     const processWorker = new ProcessWorker(data.value);
 
+    // Tunnel through the process messages to the main thread
     processWorker.on('message', (message) => {
         workerPostMessage({
             type: MessageType.Message,

@@ -7,12 +7,21 @@
     <script src="build/kernel.js"></script>
 </head>
 <body>
+    <button onclick="handleLoginClick()">
+        Log in
+    </button>
     <script>
+        async function handleLoginClick() {
+            PlayOS.auth.showLoginPrompt((auth) => {
+                console.log('[] auth -> ', auth);
+            });
+        }
+
         async function run() {
-            // PlayOS.config.setConfig({
-            //     manifestUri: 'https://airhorner.com/manifest.json',
-            //     authenticatorUri: 'http://localhost:3000/#/auth',
-            // });
+            PlayOS.config.setConfig({
+                manifestUri: 'https://airhorner.com/manifest.json',
+                authenticatorUri: 'http://localhost:3000/#/auth',
+            });
 
             // if (!PlayOS.auth.isUserLoggedIn()) {
             //     PlayOS.auth.redirectToLogin();

@@ -183,12 +183,16 @@ class FileSystem extends EventEmitter {
 
         const originalWriteSync = this.wasmFs.fs.writeSync;
         this.wasmFs.fs.writeSync = (...args: any[]) => {
-            // console.debug('🗂 Calling write', args);
+            console.debug('🗂 Calling write', args);
             const fd = args[0];
 
             if (CONSOLE_FD.includes(fd)) {
                 this.emit('message', args[1]);
             }
+
+            console.log(this.openFiles, fd, args);
+
+            this.provider.storeFile(args[1], this.openFiles[fd]);
 
             // @ts-ignore
             return originalWriteSync(...args);

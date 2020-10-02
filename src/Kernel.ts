@@ -44,7 +44,7 @@ class Kernel {
      * @returns {Promise<Process>}
      * @memberof Kernel
      */
-    async createProcess(bin: Uint8Array, args: string[], options: ProcessEnvOptions): Promise<Process> {
+    async createProcess(bin: Uint8Array, args: string[], options: ProcessEnvOptions['env']): Promise<Process> {
         this.processCounter += 1;
 
         const process = new Process(this.provider, bin, args, this.processCounter, options);

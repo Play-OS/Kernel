@@ -7,3 +7,24 @@ export interface AuthenticationRequest {
     version: string;
     scopes: Permission[];
 }
+
+export enum AuthenticationErrors {
+    InvalidRequest = 'invalid_request',
+    AccessDenied = 'access_denied',
+    UnauthorizedClient = 'unauthorized_client',
+    UnsupportedResponseType = 'unsupported_response_type',
+    InvalidScope = 'invalid_scope',
+    ServerError = 'server_error',
+    TemporarilyUnavailable = 'temporarily_unavailable',
+}
+
+export interface AuthenticationResponse {
+    error?: AuthenticationErrors;
+    error_description?: string;
+    error_uri?: string;
+
+    access_token?: string;
+    token_type?: string;
+    expires_in?: string;
+    scope?: Permission[];
+}

@@ -37,6 +37,13 @@ class Process extends EventEmitter {
         this.provider = provider;
     }
 
+    /**
+     * Listens for messages in the process.worker.ts
+     *
+     * @private
+     * @param {MessageEvent} event
+     * @memberof Process
+     */
     private handleWorkerMessage(event: MessageEvent) {
         const data: RequestMessage<any> = extractMessageFromEvent<any>(event);
 
@@ -50,6 +57,12 @@ class Process extends EventEmitter {
         }
     }
 
+    /**
+     * Spawns a worker that will run the WASM file
+     *
+     * @returns {Promise<void>}
+     * @memberof Process
+     */
     async spawn(): Promise<void> {
         try {
             this.processWorker = createWorker(appConfig.processWorkerUrl);
