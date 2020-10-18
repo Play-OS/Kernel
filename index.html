@@ -27,12 +27,12 @@
             //     PlayOS.auth.redirectToLogin();
             // }
             const kernel = await PlayOS.bootKernel('SEED', new PlayOS.providers.BrowserProvider);
-            await kernel.fs.writeFile('/tralalalala', 'test');
+            await kernel.provider.storeFile('/tralalalala', 'test');
 
-            const response = await fetch('http://localhost:4000/cowsay.wasm');
+            const response = await fetch('http://localhost:4000/untouched.wasm');
             const bin = await response.arrayBuffer();
 
-            const process = await kernel.createProcess(new Uint8Array(bin), ['cowthink', 'hello world'], {});
+            const process = await kernel.createProcess(new Uint8Array(bin), ['playos', '0x00000002', 'Hello', 'World'], {});
 
             let msgTotal = '';
 

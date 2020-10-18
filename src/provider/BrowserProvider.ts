@@ -1,41 +1,29 @@
 import IKernelProvider from '../interfaces/IKernelProvider';
+import { bytesToString } from '../services/stringToBytes';
+
+const BP_PREFIX = 'BP_';
 
 class BrowserProvider implements IKernelProvider {
     async init(key: string) {
 
     }
 
-    async setMapping(mapping: {[key: string]: object}) {
-
-    }
-
-    setMappingListener(listener: any) {
-
-    }
-
-    async storageGet(key: string) {
-        return localStorage.getItem(key);
-    }
-
-    async storageSet(key: string, value: any) {
-        localStorage.setItem(key, value);
-    }
-
     async fetchFile(id: string) {
-        const item = localStorage.getItem(id);
+        const item = localStorage.getItem(`${BP_PREFIX}${id}`);
 
         if (!item) {
             return null;
         }
 
-        return Buffer.from(JSON.parse(item));
+        console.log('[] JSON.parse(item).data -> ', JSON.parse(item).data);
+
+        return Buffer.from(JSON.parse(item).data);
     }
 
     async storeFile(file: Buffer, path?: string) {
         const buf = Buffer.from(file);
-        const fileId = Math.random().toString();
-        localStorage.setItem(fileId, JSON.stringify(buf.toJSON()));
-        return fileId;
+        localStorage.setItem(`${BP_PREFIX}${path}`, JSON.stringify(buf.toJSON()));
+        return path || '';
     }
 }
 

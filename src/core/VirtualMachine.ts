@@ -1,5 +1,4 @@
 import { WASI } from '@wasmer/wasi/lib/index';
-import wasiBrowserBindings from '../services/wasiBrowserBindings';
 // @ts-ignore
 import { lowerI64Imports } from "@wasmer/wasm-transformer";
 import { WasmFs } from '@wasmer/wasmfs';

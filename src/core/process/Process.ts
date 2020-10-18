@@ -6,7 +6,7 @@ import { appConfig } from '../Configuration';
 import { createWorker, addEventListenerOnWorker, postMessageOnWorker, extractMessageFromEvent } from '../../services/workerUtils';
 import { MessageType, RequestMessage } from '../../models/WorkerMessage';
 import { ProcessWorkerParams } from '../../process.worker';
-import processProviderMessageHandler from './helpers/processProviderMessageHandler';
+import { ProcessMessageHandler } from './helpers/processProviderMessageHandler';
 
 class Process extends EventEmitter {
     args: string[];
@@ -15,9 +15,9 @@ class Process extends EventEmitter {
     pid: number;
     provider: IKernelProvider;
 
-    private notifierBuffer?: SharedArrayBuffer;
-    private valuesBuffer?: SharedArrayBuffer;
+    private notifierBuffer: SharedArrayBuffer;
     private processWorker?: Worker;
+    private processMessageHandler: ProcessMessageHandler;
 
     /**
      * Creates an instance of Process.
@@ -35,6 +35,8 @@ class Process extends EventEmitter {
         this.bin = bin;
         this.pid = pid;
         this.provider = provider;
+        this.notifierBuffer = new SharedArrayBuffer(16);
+        this.processMessageHandler = new ProcessMessageHandler(provider, this.notifierBuffer);
     }
 
     /**
@@ -48,12 +50,12 @@ class Process extends EventEmitter {
         const data: RequestMessage<any> = extractMessageFromEvent<any>(event);
 
         if (data.type === MessageType.Provider) {
-            processProviderMessageHandler(data, this.provider, this.processWorker!);
+            this.processMessageHandler.handleProviderMessage(data);
         } else if (data.type === MessageType.Message) {
             this.emit('message', data.value);
         } else if (data.type === MessageType.Exit) {
             this.emit('exit', data.value);
-            this.processWorker?.terminate();
+            // this.processWorker?.terminate();
         }
     }
 
@@ -66,6 +68,7 @@ class Process extends EventEmitter {
     async spawn(): Promise<void> {
         try {
             this.processWorker = createWorker(appConfig.processWorkerUrl);
+            this.processMessageHandler.worker = this.processWorker;
 
             addEventListenerOnWorker(this.processWorker, 'message', this.handleWorkerMessage.bind(this));
             postMessageOnWorker<ProcessWorkerParams>(this.processWorker, {
@@ -74,6 +77,7 @@ class Process extends EventEmitter {
                     args: this.args,
                     binary: this.bin,
                     options: this.options,
+                    notifyBuffer: this.notifierBuffer,
                 },
             });
         } catch (error) {

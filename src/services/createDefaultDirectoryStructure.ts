@@ -17,17 +17,17 @@ export default async function createDefaultDirectoryStructure(fs: FileSystem, us
 
     await fs.makeDir('/bin/');
 
-    await fs.writeFile('/etc/.keep', '');
-    await fs.writeFile(`/home/${username}/.keep`, '');
-    await fs.writeFile(`/Applications/.keep`, '');
+    // await fs.writeFile('/etc/.keep', '');
+    // await fs.writeFile(`/home/${username}/.keep`, '');
+    // await fs.writeFile(`/Applications/.keep`, '');
 
-    // These are virtual files
-    await fs.makeDir('/_wasmer/dev/fb0/', {
-        recursive: true,
-    });
+    // // These are virtual files
+    // await fs.makeDir('/_wasmer/dev/fb0/', {
+    //     recursive: true,
+    // });
 
-    await fs.writeFile(`/_wasmer/dev/fb0/draw`, '');
-    await fs.writeFile(`/_wasmer/dev/fb0/fb`, '');
-    await fs.writeFile(`/_wasmer/dev/fb0/input`, '');
-    await fs.writeFile(`/_wasmer/dev/fb0/virtual_size`, '');
+    // await fs.writeFile(`/_wasmer/dev/fb0/draw`, '');
+    // await fs.writeFile(`/_wasmer/dev/fb0/fb`, '');
+    // await fs.writeFile(`/_wasmer/dev/fb0/input`, '');
+    // await fs.writeFile(`/_wasmer/dev/fb0/virtual_size`, '');
 }

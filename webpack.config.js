@@ -14,7 +14,6 @@ module.exports = {
     entry: {
         kernel: ['./src/index.ts'],
         'process.worker': ['./src/process.worker.ts'],
-        'filesystem.worker': ['./src/filesystem.worker.ts'],
     },
     output: {
         path: path.resolve(__dirname, './build/'),

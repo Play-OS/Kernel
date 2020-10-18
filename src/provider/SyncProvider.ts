@@ -23,17 +23,6 @@ class SyncProvider implements IKernelProvider {
         await Promise.all(initPromises);
     }
 
-    async setMapping(mapping: any) {
-        const setMappingPromises = this.syncProviders.map((provider) => provider.setMapping(mapping));
-
-        await this.mainProvider.setMapping(mapping);
-        await Promise.all(setMappingPromises);
-    }
-
-    setMappingListener(listener: any) {
-        this.mainProvider.setMappingListener(listener);
-    }
-
     async fetchFile(id: string) {
         return this.mainProvider.fetchFile(id);
     }
@@ -43,17 +32,6 @@ class SyncProvider implements IKernelProvider {
 
         return this.mainProvider.storeFile(data, path);
     }
-
-    async storageGet(key: string) {
-        return this.mainProvider.storageGet(key);
-    }
-
-    async storageSet(key: string, value: string) {
-        this.syncProviders.map((provider) => provider.storageSet(key, value));
-
-        await this.mainProvider.storageSet(key, value);
-    }
-
 }
 
 export default SyncProvider;

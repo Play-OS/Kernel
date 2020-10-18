@@ -1,8 +1,6 @@
 import './polyfill';
-import * as Comlink from 'comlink';
 import { ProcessEnvOptions, spawn } from 'child_process';
 import FileSystem from './core/FileSystem';
-import IKernelProvider from './interfaces/IKernelProvider';
 import Registry from './core/Registry';
 import VirtualMachine from './core/VirtualMachine';
 import { EventEmitter } from 'events';
@@ -15,18 +13,16 @@ export interface ProcessWorkerParams {
     binary: Uint8Array;
     args: string[];
     options?: ProcessEnvOptions;
+    notifyBuffer: SharedArrayBuffer;
 }
 
 export class ProcessWorker extends EventEmitter {
     binary: Uint8Array;
-
     args: string[];
-
     options?: ProcessEnvOptions;
-
-    provider: IKernelProvider;
-
+    provider: WorkerMessageProvider;
     fs?: FileSystem;
+    notifierBuffer?: SharedArrayBuffer;
 
     constructor(params: ProcessWorkerParams) {
         super();
@@ -34,12 +30,12 @@ export class ProcessWorker extends EventEmitter {
         this.binary = params.binary;
         this.args = params.args;
         this.options = params.options;
-        this.provider = new WorkerMessageProvider();
+        this.provider = new WorkerMessageProvider(params.notifyBuffer);
     }
 
     async spawn() {
         try {
-            this.fs = await FileSystem.create(new Registry({}, this.provider), this.provider);
+            this.fs = await FileSystem.create(this.provider);
             this.fs.on('message', (message: Uint8Array) => this.emit('message', bytesToString(message)));
 
             const vm = new VirtualMachine(this.fs.wasmFs);

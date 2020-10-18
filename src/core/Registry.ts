@@ -22,7 +22,7 @@ class Registry {
         this.registry[key] = value;
 
         if (!temp) {
-            await this.provider.storageSet(key, value);
+            await this.provider.storeFile(value, `reg/${key}`);
         }
     }
 
@@ -39,7 +39,7 @@ class Registry {
             return this.registry[key];
         }
 
-        const value: any = this.provider.storageGet(key);
+        const value: any = this.provider.fetchFile(`reg/${key}`);
         return value;
     }
 }
